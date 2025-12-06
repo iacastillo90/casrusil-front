@@ -1,0 +1,4018 @@
+
+# SII-ERP-AI Frontend - Especificación Técnica Completa
+
+## 1. Identidad del Proyecto
+
+**Nombre**: SII-ERP-AI (Frontend)  
+**Misión**: Interfaz de usuario intuitiva, responsive y profesional para un ERP contable chileno, con integración nativa al SII y un asistente AI omnipresente para asistencia financiera (RAG/Tools). Enfocado en usabilidad para contadores y PYMEs, con énfasis en visualización de datos (gráficos, tablas) y flujos automatizados.
+
+### Stack Tecnológico
+
+**Core Framework & Language**:
+- **Framework**: Next.js 14+ (App Router, Server Components para fetching inicial)
+- **Lenguaje**: TypeScript (Strict Mode, con ESLint + Prettier)
+- **Versión Node**: 18.x o superior
+
+**UI & Styling**:
+- **Estilos**: Tailwind CSS v3.4+ (con plugins: typography, forms)
+- **Componentes UI**: shadcn/ui (basado en Radix UI + Tailwind)
+- **Iconos**: lucide-react v0.263+
+- **Notificaciones**: sonner v1.3+
+
+**State Management & Data Fetching**:
+- **Server State**: TanStack Query v5 (queries y mutations con optimistic updates)
+- **Client State**: Zustand v4.5+ (auth, company context, AI chat state)
+- **HTTP Client**: Axios v1.6+ (con interceptores para JWT refresh y companyId)
+
+**Forms & Validation**:
+- **Formularios**: React Hook Form v7.48+
+- **Validación**: Zod v3.22+ (schemas que matchen backend records)
+
+**Data Visualization & Processing**:
+- **Gráficos**: Recharts v2.10+ (cash flow, balance sheets)
+- **Markdown**: react-markdown v9.0+ con remark-gfm (tablas)
+- **Precisión Numérica**: decimal.js v10.4+ (manejo de montos financieros)
+
+**Testing & Quality**:
+- **Testing**: Vitest + React Testing Library + MSW (API mocking)
+- **Linting**: ESLint + Prettier + TypeScript strict
+
+**Deployment & PWA**:
+- **Despliegue**: Vercel (optimizado para Next.js)
+- **PWA**: next-pwa (offline support mobile)
+- **i18n**: next-intl (español chileno, formatos CLP/RUT)
+
+### Objetivos No Funcionales
+
+- ✅ **Responsive**: Mobile-first design, drawers para AI en pantallas pequeñas
+- ✅ **Accesible**: ARIA labels en shadcn/ui, navegación por teclado
+- ✅ **Performante**: Server Components por defecto, lazy loading para charts
+- ✅ **Seguro**: JWT en httpOnly cookies, HTTPS en producción
+- ✅ **Offline-Ready**: PWA con service workers para consultas básicas
+
+---
+
+## 2. Configuración Inicial
+
+### 2.1 Variables de Entorno
+
+Crear archivo `.env.local`:
+
+```bash
+# API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+
+# Application
+NEXT_PUBLIC_APP_NAME=SII-ERP-AI
+NEXT_PUBLIC_APP_VERSION=1.0.0
+
+# Features
+NEXT_PUBLIC_ENABLE_PWA=true
+NEXT_PUBLIC_ENABLE_AI_STREAMING=false # Cambiar a true cuando backend soporte SSE
+
+# Locale
+NEXT_PUBLIC_DEFAULT_LOCALE=es-CL
+NEXT_PUBLIC_CURRENCY=CLP
+```
+
+### 2.2 package.json (Dependencias Core)
+
+```json
+{
+  "name": "sii-erp-ai-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "@tanstack/react-query": "^5.17.0",
+    "axios": "^1.6.5",
+    "zustand": "^4.5.0",
+    "zod": "^3.22.4",
+    "react-hook-form": "^7.48.0",
+    "@hookform/resolvers": "^3.3.0",
+    "decimal.js": "^10.4.3",
+    "react-markdown": "^9.0.0",
+    "remark-gfm": "^4.0.0",
+    "recharts": "^2.10.0",
+    "sonner": "^1.3.0",
+    "lucide-react": "^0.263.1",
+    "date-fns": "^3.0.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.0",
+    "next-intl": "^3.4.0",
+    "next-pwa": "^5.6.0",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-dropdown-menu": "^2.0.6",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-tooltip": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5.3.0",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.0",
+    "prettier": "^3.1.0",
+    "prettier-plugin-tailwindcss": "^0.5.0",
+    "vitest": "^1.1.0",
+    "@testing-library/react": "^14.1.0",
+    "@testing-library/jest-dom": "^6.1.0",
+    "msw": "^2.0.0"
+  }
+}
+```
+
+### 2.3 TypeScript Configuration (tsconfig.json)
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+```
+
+### 2.4 Tailwind Configuration
+
+```javascript
+// tailwind.config.ts
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  darkMode: ["class"],
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/features/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+};
+export default config;
+```
+
+### 2.5 shadcn/ui Configuration
+
+```json
+// components.json
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "tailwind.config.ts",
+    "css": "src/app/globals.css",
+    "baseColor": "slate",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  }
+}
+```
+
+---
+
+## 3. Arquitectura: Feature-Sliced Design
+
+### 3.1 Principios de Diseño
+
+1. **Server Components First**: Páginas y layouts usan Server Components por defecto
+2. **Client Components**: Solo para interactividad (`"use client"` explícito)
+3. **Multi-Tenancy**: CompanyId en Zustand + header `X-Company-Id` en Axios
+4. **AI Omnipresente**: Drawer global con hotkey `Cmd+K`
+5. **Data Flow Unificado**: TanStack Query + Axios para todo (no Server Actions en mutaciones)
+6. **Precisión Financiera**: BigDecimal como strings, cálculos con decimal.js
+
+### 3.2 Estructura de Directorios
+
+```
+src/
+├── app/                                # Next.js App Router
+│   ├── (auth)/                         # Rutas públicas
+│   │   ├── login/
+│   │   │   └── page.tsx
+│   │   └── register/
+│   │       └── page.tsx
+│   │
+│   ├── (dashboard)/                    # Rutas protegidas
+│   │   ├── layout.tsx                  # DashboardLayout (Sidebar, Header, AI)
+│   │   ├── page.tsx                    # Dashboard home
+│   │   │
+│   │   ├── invoices/
+│   │   │   ├── page.tsx                # Listado facturas
+│   │   │   ├── new/
+│   │   │   │   └── page.tsx            # Nueva factura
+│   │   │   └── [id]/
+│   │   │       └── page.tsx            # Detalle factura
+│   │   │
+│   │   ├── accounting/
+│   │   │   ├── ledger/
+│   │   │   │   └── page.tsx
+│   │   │   ├── f29/
+│   │   │   │   └── page.tsx
+│   │   │   ├── balance/
+│   │   │   │   └── page.tsx
+│   │   │   ├── audit/
+│   │   │   │   └── page.tsx
+│   │   │   ├── depreciation/
+│   │   │   │   └── page.tsx
+│   │   │   └── closing/
+│   │   │       └── page.tsx
+│   │   │
+│   │   ├── sii/
+│   │   │   ├── sync/
+│   │   │   │   └── page.tsx
+│   │   │   └── caf/
+│   │   │       └── page.tsx
+│   │   │
+│   │   ├── banking/
+│   │   │   └── reconciliation/
+│   │   │       └── page.tsx
+│   │   │
+│   │   └── settings/
+│   │       ├── company/
+│   │       │   └── page.tsx
+│   │       └── users/
+│   │           └── page.tsx
+│   │
+│   ├── api/                            # Route handlers (interno)
+│   │   └── health/
+│   │       └── route.ts
+│   │
+│   ├── layout.tsx                      # Root layout (Providers)
+│   ├── globals.css                     # Tailwind + CSS vars
+│   ├── error.tsx                       # Global error boundary
+│   ├── not-found.tsx                   # 404 page
+│   └── loading.tsx                     # Global loading
+│
+├── components/                         # UI Reusables
+│   ├── ui/                             # shadcn/ui components
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── dialog.tsx
+│   │   ├── input.tsx
+│   │   ├── table.tsx
+│   │   ├── select.tsx
+│   │   ├── tooltip.tsx
+│   │   └── ...
+│   │
+│   ├── shared/                         # Business UI components
+│   │   ├── StatusBadge.tsx
+│   │   ├── CurrencyDisplay.tsx
+│   │   ├── RutInput.tsx
+│   │   ├── DateRangePicker.tsx
+│   │   └── LoadingSkeleton.tsx
+│   │
+│   └── layout/                         # Layout components
+│       ├── Sidebar.tsx
+│       ├── Header.tsx
+│       ├── AiDrawer.tsx
+│       └── MobileNav.tsx
+│
+├── features/                           # Business Logic (Feature-Sliced)
+│   ├── auth/
+│   │   ├── components/
+│   │   │   ├── LoginForm.tsx
+│   │   │   ├── RegisterForm.tsx
+│   │   │   └── ProtectedRoute.tsx
+│   │   ├── hooks/
+│   │   │   └── useAuth.ts
+│   │   ├── services/
+│   │   │   └── auth.service.ts
+│   │   ├── stores/
+│   │   │   └── auth.store.ts
+│   │   └── types/
+│   │       └── auth.types.ts
+│   │
+│   ├── invoicing/
+│   │   ├── components/
+│   │   │   ├── InvoiceForm.tsx
+│   │   │   ├── InvoiceTable.tsx
+│   │   │   ├── InvoiceLineItem.tsx
+│   │   │   └── PdfPreview.tsx
+│   │   ├── hooks/
+│   │   │   └── useInvoices.ts
+│   │   ├── services/
+│   │   │   └── invoice.service.ts
+│   │   └── types/
+│   │       └── invoice.types.ts
+│   │
+│   ├── accounting/
+│   │   ├── components/
+│   │   │   ├── LedgerTable.tsx
+│   │   │   ├── F29Preview.tsx
+│   │   │   ├── BalanceSheetTree.tsx
+│   │   │   ├── AuditAlertsList.tsx
+│   │   │   └── DepreciationCalculator.tsx
+│   │   ├── hooks/
+│   │   │   └── useAccounting.ts
+│   │   ├── services/
+│   │   │   └── accounting.service.ts
+│   │   └── types/
+│   │       └── accounting.types.ts
+│   │
+│   ├── sii/
+│   │   ├── components/
+│   │   │   ├── SyncProgress.tsx
+│   │   │   ├── CafUploadForm.tsx
+│   │   │   └── DteStatusTracker.tsx
+│   │   ├── hooks/
+│   │   │   └── useSii.ts
+│   │   ├── services/
+│   │   │   └── sii.service.ts
+│   │   └── types/
+│   │       └── sii.types.ts
+│   │
+│   ├── banking/
+│   │   ├── components/
+│   │   │   ├── ReconciliationTable.tsx
+│   │   │   ├── UploadStatementModal.tsx
+│   │   │   └── MatchSuggestions.tsx
+│   │   ├── hooks/
+│   │   │   └── useBanking.ts
+│   │   ├── services/
+│   │   │   └── bank.service.ts
+│   │   └── types/
+│   │       └── bank.types.ts
+│   │
+│   └── ai-assistant/
+│       ├── components/
+│       │   ├── ChatBubble.tsx
+│       │   ├── MessageList.tsx
+│       │   ├── ChatInput.tsx
+│       │   └── ToolResponse.tsx
+│       ├── hooks/
+│       │   └── useChat.ts
+│       ├── services/
+│       │   └── ai.service.ts
+│       ├── stores/
+│       │   └── chat.store.ts
+│       └── types/
+│           └── ai.types.ts
+│
+├── hooks/                              # Global custom hooks
+│   ├── useCompanyContext.ts
+│   ├── useMediaQuery.ts
+│   └── useDebounce.ts
+│
+├── lib/                                # Utilities & Config
+│   ├── axios.ts                        # Axios instance configurada
+│   ├── queryClient.ts                  # TanStack Query config
+│   ├── utils.ts                        # cn(), helpers
+│   ├── formatters.ts                   # formatCLP, formatRut, formatDate
+│   ├── validators.ts                   # Zod schemas reutilizables
+│   └── constants.ts                    # Constantes globales
+│
+├── types/                              # Global TypeScript types
+│   ├── api.types.ts
+│   ├── common.types.ts
+│   └── environment.d.ts
+│
+├── middleware.ts                       # Auth guard (Next.js middleware)
+│
+└── tests/                              # Testing setup
+    ├── setup.ts
+    ├── mocks/
+    │   ├── handlers.ts                 # MSW handlers
+    │   └── server.ts                   # MSW server
+    └── utils/
+        └── test-utils.tsx              # Custom render con providers
+```
+
+---
+
+## 4. Configuraciones Base
+
+### 4.1 Axios Configuration (`lib/axios.ts`)
+
+```typescript
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { useAuthStore } from '@/features/auth/stores/auth.store';
+
+// Create axios instance
+export const apiClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 30000,
+});
+
+// Request interceptor: Add token + companyId
+apiClient.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const { token, companyId } = useAuthStore.getState();
+    
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    if (companyId) {
+      config.headers['X-Company-Id'] = companyId;
+    }
+    
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor: Handle 401 (auto logout)
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const { logout } = useAuthStore.getState();
+    
+    if (error.response?.status === 401) {
+      logout();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+    
+    // Format error message
+    const message = 
+      (error.response?.data as any)?.message || 
+      error.message || 
+      'Ocurrió un error inesperado';
+    
+    return Promise.reject(new Error(message));
+  }
+);
+
+// Helper types
+export interface ApiResponse<T = any> {
+  data: T;
+  message?: string;
+  success: boolean;
+}
+
+export interface ApiError {
+  message: string;
+  code?: string;
+  details?: Record<string, any>;
+}
+```
+
+### 4.2 TanStack Query Configuration (`lib/queryClient.ts`)
+
+```typescript
+import { QueryClient, DefaultOptions } from '@tanstack/react-query';
+
+const queryConfig: DefaultOptions = {
+  queries: {
+    staleTime: 60 * 1000, // 1 minute
+    gcTime: 5 * 60 * 1000, // 5 minutes (antes cacheTime)
+    retry: 1,
+    refetchOnWindowFocus: false,
+  },
+  mutations: {
+    retry: 0,
+  },
+};
+
+export const queryClient = new QueryClient({
+  defaultOptions: queryConfig,
+});
+```
+
+### 4.3 Auth Store (`features/auth/stores/auth.store.ts`)
+
+```typescript
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'ADMIN' | 'ACCOUNTANT' | 'USER';
+}
+
+export interface Company {
+  id: string;
+  rut: string;
+  razonSocial: string;
+}
+
+interface AuthState {
+  token: string | null;
+  user: User | null;
+  companyId: string | null;
+  companies: Company[];
+  
+  // Actions
+  setAuth: (token: string, user: User, companyId: string) => void;
+  setCompanies: (companies: Company[]) => void;
+  switchCompany: (companyId: string) => void;
+  logout: () => void;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      token: null,
+      user: null,
+      companyId: null,
+      companies: [],
+      
+      setAuth: (token, user, companyId) => 
+        set({ token, user, companyId }),
+      
+      setCompanies: (companies) => 
+        set({ companies }),
+      
+      switchCompany: (companyId) => 
+        set({ companyId }),
+      
+      logout: () => 
+        set({ token: null, user: null, companyId: null, companies: [] }),
+    }),
+    {
+      name: 'sii-erp-auth',
+      partialize: (state) => ({
+        token: state.token,
+        user: state.user,
+        companyId: state.companyId,
+        companies: state.companies,
+      }),
+    }
+  )
+);
+```
+
+### 4.4 Auth Middleware (`middleware.ts`)
+
+```typescript
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+const PUBLIC_ROUTES = ['/login', '/register'];
+const AUTH_ROUTES = ['/login', '/register'];
+
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value;
+  const { pathname } = request.nextUrl;
+  
+  // Check if route is public
+  const isPublicRoute = PUBLIC_ROUTES.some(route => 
+    pathname.startsWith(route)
+  );
+  
+  const isAuthRoute = AUTH_ROUTES.some(route => 
+    pathname.startsWith(route)
+  );
+  
+  // Redirect to login if not authenticated
+  if (!token && !isPublicRoute) {
+    const url = new URL('/login', request.url);
+    url.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(url);
+  }
+  
+  // Redirect to dashboard if authenticated and trying to access auth pages
+  if (token && isAuthRoute) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+  
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico (favicon)
+     * - public folder
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+  ],
+};
+```
+
+### 4.5 Root Layout (`app/layout.tsx`)
+
+```typescript
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { Providers } from '@/components/providers';
+import './globals.css';
+
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'SII-ERP-AI',
+  description: 'Sistema ERP contable chileno con IA integrada',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="es-CL" suppressHydrationWarning>
+      <body className={inter.className}>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+### 4.6 Providers Component (`components/providers.tsx`)
+
+```typescript
+'use client';
+
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { Toaster } from 'sonner';
+import { ThemeProvider } from 'next-themes';
+import { queryClient } from '@/lib/queryClient';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        {children}
+        <Toaster position="top-right" richColors closeButton />
+      </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+}
+```
+
+### 4.7 Utility Functions (`lib/utils.ts`)
+
+```typescript
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
+### 4.8 Chilean Formatters (`lib/formatters.ts`)
+
+```typescript
+import Decimal from 'decimal.js';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+/**
+ * Formatea un monto como CLP chileno
+ * @param amount - Monto como string o número
+ * @param includeSymbol - Si incluir símbolo $
+ * @returns String formateado (ej: "$1.190" o "1.190")
+ */
+export function formatCLP(
+  amount: string | number,
+  includeSymbol: boolean = true
+): string {
+  const decimal = new Decimal(amount);
+  const formatted = decimal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return includeSymbol ? `$${formatted}` : formatted;
+}
+
+/**
+ * Formatea RUT chileno
+ * @param rut - RUT sin formato (ej: "123456789")
+ * @returns RUT formateado (ej: "12.345.678-9")
+ */
+export function formatRut(rut: string): string {
+  // Remove non-alphanumeric
+  const clean = rut.replace(/[^0-9kK]/g, '');
+  
+  if (clean.length < 2) return clean;
+  
+  const dv = clean.slice(-1);
+  const num = clean.slice(0, -1);
+  
+  // Add dots every 3 digits from right
+  const formatted = num.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+  return `${formatted}-${dv}`;
+}
+
+/**
+ * Valida formato de RUT chileno
+ * @param rut - RUT a validar
+ * @returns true si es válido
+ */
+export function validateRut(rut: string): boolean {
+  const clean = rut.replace(/[^0-9kK]/g, '');
+  
+  if (clean.length < 2) return false;
+  
+  const dv = clean.slice(-1).toLowerCase();
+  const num = parseInt(clean.slice(0, -1), 10);
+  
+  let sum = 0;
+  let multiplier = 2;
+  
+  for (let i = clean.length - 2; i >= 0; i--) {
+    sum += parseInt(clean[i], 10) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+  
+  const expectedDv = 11 - (sum % 11);
+  const calculatedDv = expectedDv === 11 ? '0' : expectedDv === 10 ? 'k' : expectedDv.toString();
+  
+  return dv === calculatedDv;
+}
+
+/**
+ * Formatea fecha al formato chileno
+ * @param date - Fecha ISO string o Date object
+ * @param formatStr - Formato (default: dd/MM/yyyy)
+ * @returns Fecha formateada
+ */
+export function formatDate(
+  date: string | Date,
+  formatStr: string = 'dd/MM/yyyy'
+): string {
+  const dateObj = typeof date === 'string' ? parseISO(date) : date;
+  return format(dateObj, formatStr, { locale: es });
+}
+
+/**
+ * Formatea período contable (YYYYMM)
+ * @param period - Período en formato YYYYMM (ej: "202401")
+ * @returns Período formateado (ej: "Enero 2024")
+ */
+export function formatPeriod(period: string): string {
+  if (period.length !== 6) return period;
+  
+  const year = period.substring(0, 4);
+  const month = parseInt(period.substring(4, 6), 10);
+  
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  
+  return `${monthNames[month - 1]} ${year}`;
+}
+
+/**
+ * Parsea monto string a Decimal para cálculos
+ * @param amount - Monto como string
+ * @returns Decimal instance
+ */
+export function parseAmount(amount: string | number): Decimal {
+  return new Decimal(amount);
+}
+
+/**
+ * Calcula total con IVA (19%)
+ * @param netAmount - Monto neto como string
+ * @returns Objeto con neto, iva y total
+ */
+export function calculateWithIVA(netAmount: string | number) {
+  const net = new Decimal(netAmount);
+  const iva = net.times(0.19);
+  const total = net.plus(iva);
+  
+  return {
+    net: net.toFixed(2),
+    iva: iva.toFixed(2),
+    total: total.toFixed(2),
+  };
+}
+```
+
+### 4.9 Constants (`lib/constants.ts`)
+
+```typescript
+export const API_ROUTES = {
+  // Auth
+  LOGIN: '/auth/login',
+  REGISTER: '/auth/register',
+  LOGOUT: '/auth/logout',
+  REFRESH: '/auth/refresh',
+  
+  // Users
+  USERS: '/users',
+  USER_BY_ID: (id: string) => `/users/${id}`,
+  
+  // Invoices
+  INVOICES: '/invoices',
+  INVOICE_BY_ID: (id: string) => `/invoices/${id}`,
+  INVOICE_SEND: (id: string) => `/invoices/${id}/send`,
+  
+  // SII
+  SII_FETCH_RCV: '/sii/ops/fetch-rcv',
+  SII_UPLOAD_CAF: '/sii/caf',
+  SII_SEND_DTE: '/sii/dte/send',
+  
+  // Accounting
+  ACCOUNTING_ENTRIES: '/accounting/entries',
+  ACCOUNTING_ACCOUNTS: '/accounting/accounts',
+  ACCOUNTING_F29: '/accounting/f29',
+  ACCOUNTING_BALANCE: '/accounting/balance-sheet',
+  ACCOUNTING_AUDIT: '/accounting/audit',
+  ACCOUNTING_CLOSE_PERIOD: '/accounting/periods/close',
+  ACCOUNTING_CORRECT_ENTRY: '/accounting/entries/correct',
+  
+  // Banking
+  BANK_UPLOAD: '/bank/upload',
+  BANK_RECONCILIATION: '/bank/reconciliation',
+  BANK_RECONCILE: '/bank/reconcile',
+  
+  // AI
+  AI_CHAT: '/ai/chat',
+} as const;
+
+export const APP_ROUTES = {
+  HOME: '/',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  DASHBOARD: '/dashboard',
+  
+  // Invoices
+  INVOICES: '/invoices',
+  INVOICES_NEW: '/invoices/new',
+  INVOICE_DETAIL: (id: string) => `/invoices/${id}`,
+  
+  // Accounting
+  ACCOUNTING_LEDGER: '/accounting/ledger',
+  ACCOUNTING_F29: '/accounting/f29',
+  ACCOUNTING_BALANCE: '/accounting/balance',
+  ACCOUNTING_AUDIT: '/accounting/audit',
+  ACCOUNTING_DEPRECIATION: '/accounting/depreciation',
+  ACCOUNTING_CLOSING: '/accounting/closing',
+  
+  // SII
+  SII_SYNC: '/sii/sync',
+  SII_CAF: '/sii/caf',
+  
+  // Banking
+  BANKING_RECONCILIATION: '/banking/reconciliation',
+  
+  // Settings
+  SETTINGS_COMPANY: '/settings/company',
+  SETTINGS_USERS: '/settings/users',
+} as const;
+
+export const QUERY_KEYS = {
+  // Auth
+  CURRENT_USER: ['auth', 'current-user'],
+  COMPANIES: ['auth', 'companies'],
+  
+  // Invoices
+  INVOICES: ['invoices'],
+  INVOICES_FILTERED: (filters: any) => ['invoices', 'filtered', filters],
+  INVOICE_DETAIL: (id: string) => ['invoices', id],
+  
+  // Accounting
+  ACCOUNTING_ENTRIES: ['accounting', 'entries'],
+  ACCOUNTING_ACCOUNTS: ['accounting', 'accounts'],
+  ACCOUNTING_F29: (period: string) => ['accounting', 'f29', period],
+  ACCOUNTING_BALANCE: (date: string) => ['accounting', 'balance', date],
+  ACCOUNTING_AUDIT: ['accounting', 'audit'],
+  
+  // Banking
+  BANK_RECONCILIATION: (period: string) => ['bank', 'reconciliation', period],
+  
+  // SII
+  SII_STATUS: ['sii', 'status'],
+  
+  // AI
+  AI_CONVERSATION: (id: string) => ['ai', 'conversation', id],
+} as const;
+
+export const ROLES = {
+  ADMIN: 'ADMIN',
+  ACCOUNTANT: 'ACCOUNTANT',
+  USER: 'USER',
+} as const;
+
+export const INVOICE_TYPES = {
+  FACTURA_ELECTRONICA: 33,
+  FACTURA_EXENTA: 34,
+  BOLETA_ELECTRONICA: 39,
+  NOTA_CREDITO: 61,
+  NOTA_DEBITO: 56,
+} as const;
+
+export const DTE_STATUS = {
+  DRAFT: 'DRAFT',
+  SIGNED: 'SIGNED',
+  SENT: 'SENT',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export const IVA_RATE = 0.19; // 19%
+```
+
+### 4.10 Validators (`lib/validators.ts`)
+
+```typescript
+import { z } from 'zod';
+import { validateRut } from './formatters';
+
+// Auth schemas
+export const loginSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'Mínimo 6 caracteres'),
+});
+
+export const registerSchema = z.object({
+  rut: z.string().refine(validateRut, 'RUT inválido'),
+  razonSocial: z.string().min(3, 'Mínimo 3 caracteres'),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(8, 'Mínimo 8 caracteres'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Las contraseñas no coinciden',
+  path: ['confirmPassword'],
+});
+
+// Invoice schemas
+export const invoiceLineSchema = z.object({
+  description: z.string().min(1, 'Descripción requerida'),
+  quantity: z.number().positive('Cantidad debe ser positiva'),
+  unitPrice: z.string().refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    'Precio debe ser positivo'
+  ),
+});
+
+export const invoiceSchema = z.object({
+  type: z.number(),
+  folio: z.number().positive(),
+  issuerRut: z.string().refine(validateRut, 'RUT emisor inválido'),
+  recipientRut: z.string().refine(validateRut, 'RUT receptor inválido'),
+  recipientName: z.string().min(3, 'Nombre receptor requerido'),
+  issueDate: z.string().refine((date) => !isNaN(Date.parse(date)), 'Fecha inválida'),
+  lines: z.array(invoiceLineSchema).min(1, 'Debe haber al menos una línea'),
+});
+
+// Company schema
+export const companySchema = z.object({
+  rut: z.string().refine(validateRut, 'RUT inválido'),
+  razonSocial: z.string().min(3, 'Mínimo 3 caracteres'),
+  email: z.string().email('Email inválido').optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+});
+
+// User schema
+export const userSchema = z.object({
+  email: z.string().email('Email inválido'),
+  name: z.string().min(2, 'Mínimo 2 caracteres'),
+  role: z.enum(['ADMIN', 'ACCOUNTANT', 'USER']),
+  password: z.string().min(8, 'Mínimo 8 caracteres').optional(),
+});
+
+// Period schema
+export const periodSchema = z.string().regex(
+  /^\d{6}$/,
+  'Formato debe ser YYYYMM (ej: 202401)'
+);
+
+// Date range schema
+export const dateRangeSchema = z.object({
+  from: z.string().refine((date) => !isNaN(Date.parse(date)), 'Fecha desde inválida'),
+  to: z.string().refine((date) => !isNaN(Date.parse(date)), 'Fecha hasta inválida'),
+}).refine((data) => new Date(data.from) <= new Date(data.to), {
+  message: 'Fecha desde debe ser menor o igual a fecha hasta',
+  path: ['to'],
+});
+```
+
+---
+
+## 5. Contrato de API (Endpoints Backend)
+
+Todos los endpoints retornan montos como strings (BigDecimal serializado). Headers requeridos: `Authorization: Bearer {token}` y `X-Company-Id: {companyId}` (excepto auth).
+
+### 5.1 Authentication & Users
+
+```typescript
+// POST /api/v1/auth/login
+interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+interface LoginResponse {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: 'ADMIN' | 'ACCOUNTANT' | 'USER';
+  };
+  companyId: string;
+}
+
+// POST /api/v1/auth/register
+interface RegisterRequest {
+  rut: string;
+  razonSocial: string;
+  email: string;
+  password: string;
+}
+
+interface RegisterResponse {
+  token: string;
+  user: User;
+  company: Company;
+}
+
+// GET /api/v1/users?companyId={id}
+interface GetUsersResponse {
+  users: User[];
+}
+
+// POST /api/v1/users
+interface CreateUserRequest {
+  email: string;
+  name: string;
+  role: string;
+  password: string;
+}
+```
+
+### 5.2 SII Integration
+
+```typescript
+// POST /api/v1/sii/ops/fetch-rcv
+interface FetchRcvRequest {
+  rut: string;
+  period: string; // YYYYMM
+}
+
+interface FetchRcvResponse {
+  status: 'SUCCESS' | 'ERROR';
+  downloaded: number;
+  message?: string;
+}
+
+// POST /api/v1/sii/caf (multipart/form-data)
+// Body: file (XML CAF file)
+interface UploadCafResponse {
+  success: boolean;
+  message: string;
+}
+
+// POST /api/v1/sii/dte/send
+interface SendDteRequest {
+  invoiceId: string;
+}
+
+interface SendDteResponse {
+  trackId: string;
+  status: 'SENT' | 'ERROR';
+}
+```
+
+### 5.3 Invoicing
+
+```typescript
+// GET /api/v1/invoices?folio=&dateFrom=&dateTo=&status=
+interface Invoice {
+  id: string;
+  companyId: string;
+  type: number;
+  folio: number;
+  issuerRut: string;
+  recipientRut: string;
+  recipientName: string;
+  issueDate: string; // ISO date
+  netAmount: string; // BigDecimal as string
+  taxAmount: string;
+  totalAmount: string;
+  status: 'DRAFT' | 'SIGNED' | 'SENT' | 'ACCEPTED' | 'REJECTED';
+  lines: InvoiceLine[];
+}
+
+interface InvoiceLine {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: string; // BigDecimal as string
+  lineTotal: string;
+}
+
+interface GetInvoicesResponse {
+  invoices: Invoice[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// POST /api/v1/invoices
+interface CreateInvoiceRequest {
+  type: number;
+  folio: number;
+  issuerRut: string;
+  recipientRut: string;
+  recipientName: string;
+  issueDate: string;
+  lines: {
+    description: string;
+    quantity: number;
+    unitPrice: string;
+  }[];
+}
+
+// POST /api/v1/invoices/{id}/send
+interface SendInvoiceRequest {
+  email?: string;
+}
+
+interface SendInvoiceResponse {
+  sent: boolean;
+  message: string;
+}
+```
+
+### 5.4 Accounting
+
+```typescript
+// GET /api/v1/accounting/entries?dateFrom=&dateTo=
+interface AccountingEntry {
+  id: string;
+  date: string;
+  accountCode: string;
+  accountName: string;
+  debit: string; // BigDecimal as string
+  credit: string;
+  description: string;
+  documentReference?: string;
+}
+
+// GET /api/v1/accounting/accounts
+interface Account {
+  id: string;
+  code: string;
+  name: string;
+  type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE';
+  parent?: string;
+}
+
+// GET /api/v1/accounting/f29?period=YYYY-MM
+interface F29Report {
+  period: string;
+  sales: string; // BigDecimal as string
+  purchases: string;
+  vatPayable: string;
+  vatRecoverable: string;
+  netVat: string;
+  details: {
+    code: string;
+    description: string;
+    amount: string;
+  }[];
+}
+
+// GET /api/v1/accounting/balance-sheet?date=YYYY-MM-DD
+interface BalanceSheet {
+  date: string;
+  assets: BalanceSheetSection[];
+  liabilities: BalanceSheetSection[];
+  equity: BalanceSheetSection[];
+}
+
+interface BalanceSheetSection {
+  accountCode: string;
+  accountName: string;
+  amount: string; // BigDecimal as string
+  children?: BalanceSheetSection[];
+}
+
+// GET /api/v1/accounting/audit
+interface AuditAlert {
+  id: string;
+  type: 'DUPLICATE' | 'SUSPICIOUS_AMOUNT' | 'MISSING_ACCOUNT' | 'UNBALANCED';
+  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+  description: string;
+  affectedEntries: string[];
+  suggestedAction?: string;
+}
+
+// POST /api/v1/accounting/periods/close
+interface ClosePeriodRequest {
+  period: string; // YYYYMM
+}
+
+interface ClosePeriodResponse {
+  closed: boolean;
+  message: string;
+}
+
+// POST /api/v1/accounting/entries/correct
+interface CorrectEntryRequest {
+  originalId: string;
+  changes: Partial<AccountingEntry>;
+  reason: string;
+}
+
+interface CorrectEntryResponse {
+  corrected: boolean;
+  newEntryId: string;
+}
+```
+
+### 5.5 Banking
+
+```typescript
+// POST /api/v1/bank/upload (multipart/form-data)
+// Body: file (Excel/CSV bank statement)
+interface UploadStatementResponse {
+  parsed: {
+    date: string;
+    description: string;
+    amount: string; // BigDecimal as string
+    balance: string;
+  }[];
+}
+
+// GET /api/v1/bank/reconciliation?period=YYYYMM
+interface ReconciliationData {
+  period: string;
+  bankTransactions: BankTransaction[];
+  accountingEntries: AccountingEntry[];
+  matches: ReconciliationMatch[];
+  unmatchedBank: string[];
+  unmatchedAccounting: string[];
+}
+
+interface BankTransaction {
+  id: string;
+  date: string;
+  description: string;
+  amount: string;
+  balance: string;
+}
+
+interface ReconciliationMatch {
+  bankTransactionId: string;
+  accountingEntryId: string;
+  confidence: number; // 0-1
+  suggestedBy: 'AI' | 'MANUAL';
+}
+
+// POST /api/v1/bank/reconcile
+interface ReconcileRequest {
+  matches: {
+    bankTransactionId: string;
+    accountingEntryId: string;
+  }[];
+}
+
+interface ReconcileResponse {
+  applied: number;
+  message: string;
+}
+```
+
+### 5.6 AI Assistant
+
+```typescript
+// POST /api/v1/ai/chat
+interface ChatRequest {
+  message: string;
+  conversationId?: string;
+}
+
+interface ChatResponse {
+  response: string; // Markdown con posibles tablas
+  conversationId: string;
+  toolUsed?: {
+    name: string;
+    result: any;
+  };
+}
+```
+
+---
+
+## 6. Features Implementation
+
+### 6.1 Auth Feature
+
+#### Types (`features/auth/types/auth.types.ts`)
+
+```typescript
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'ADMIN' | 'ACCOUNTANT' | 'USER';
+}
+
+export interface Company {
+  id: string;
+  rut: string;
+  razonSocial: string;
+  email?: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  rut: string;
+  razonSocial: string;
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+  companyId: string;
+}
+```
+
+#### Service (`features/auth/services/auth.service.ts`)
+
+```typescript
+import { apiClient } from '@/lib/axios';
+import { API_ROUTES } from '@/lib/constants';
+import type { 
+  LoginCredentials, 
+  RegisterData, 
+  AuthResponse, 
+  User 
+} from '../types/auth.types';
+
+export const authService = {
+  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    const { data } = await apiClient.post<AuthResponse>(
+      API_ROUTES.LOGIN,
+      credentials
+    );
+    return data;
+  },
+
+  register: async (registerData: RegisterData): Promise<AuthResponse> => {
+    const { data} = await apiClient.post<AuthResponse>(
+      API_ROUTES.REGISTER,
+      registerData
+    );
+    return data;
+  },
+
+  logout: async (): Promise<void> => {
+    await apiClient.post(API_ROUTES.LOGOUT);
+  },
+
+  getCurrentUser: async (): Promise<User> => {
+    const { data } = await apiClient.get<User>('/auth/me');
+    return data;
+  },
+};
+```
+
+#### Hooks (`features/auth/hooks/useAuth.ts`)
+
+```typescript
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { authService } from '../services/auth.service';
+import { useAuthStore } from '../stores/auth.store';
+import type { LoginCredentials, RegisterData } from '../types/auth.types';
+
+export const useLogin = () => {
+  const router = useRouter();
+  const { setAuth } = useAuthStore();
+  
+  return useMutation({
+    mutationFn: authService.login,
+    onSuccess: (data) => {
+      setAuth(data.token, data.user, data.companyId);
+      toast.success('Sesión iniciada exitosamente');
+      router.push('/dashboard');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al iniciar sesión');
+    },
+  });
+};
+
+export const useRegister = () => {
+  const router = useRouter();
+  const { setAuth } = useAuthStore();
+  
+  return useMutation({
+    mutationFn: authService.register,
+    onSuccess: (data) => {
+      setAuth(data.token, data.user, data.companyId);
+      toast.success('Registro exitoso');
+      router.push('/dashboard');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al registrar');
+    },
+  });
+};
+
+export const useLogout = () => {
+  const router = useRouter();
+  const { logout } = useAuthStore();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: authService.logout,
+    onSuccess: () => {
+      logout();
+      queryClient.clear();
+      toast.success('Sesión cerrada');
+      router.push('/login');
+    },
+  });
+};
+```
+
+#### Login Component (`features/auth/components/LoginForm.tsx`)
+
+```typescript
+'use client';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { loginSchema } from '@/lib/validators';
+import { useLogin } from '../hooks/useAuth';
+import type { LoginCredentials } from '../types/auth.types';
+
+export function LoginForm() {
+  const { mutate: login, isPending } = useLogin();
+  
+  const form = useForm<LoginCredentials>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
+  const onSubmit = (data: LoginCredentials) => {
+    login(data);
+  };
+
+  return (
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle>Iniciar Sesión</CardTitle>
+        <CardDescription>Ingresa tus credenciales para acceder</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="correo@ejemplo.cl"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contraseña</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isPending}
+            >
+              {isPending ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### 6.2 Invoicing Feature
+
+#### Types (`features/invoicing/types/invoice.types.ts`)
+
+```typescript
+export interface Invoice {
+  id: string;
+  companyId: string;
+  type: number;
+  folio: number;
+  issuerRut: string;
+  recipientRut: string;
+  recipientName: string;
+  issueDate: string;
+  netAmount: string; // BigDecimal as string
+  taxAmount: string;
+  totalAmount: string;
+  status: 'DRAFT' | 'SIGNED' | 'SENT' | 'ACCEPTED' | 'REJECTED';
+  lines: InvoiceLine[];
+}
+
+export interface InvoiceLine {
+  id?: string;
+  description: string;
+  quantity: number;
+  unitPrice: string; // BigDecimal as string
+  lineTotal?: string;
+}
+
+export interface CreateInvoiceData {
+  type: number;
+  folio: number;
+  issuerRut: string;
+  recipientRut: string;
+  recipientName: string;
+  issueDate: string;
+  lines: Omit<InvoiceLine, 'id' | 'lineTotal'>[];
+}
+
+export interface InvoiceFilters {
+  folio?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: string;
+}
+```
+
+#### Service (`features/invoicing/services/invoice.service.ts`)
+
+```typescript
+import { apiClient } from '@/lib/axios';
+import { API_ROUTES } from '@/lib/constants';
+import type { Invoice, CreateInvoiceData, InvoiceFilters } from '../types/invoice.types';
+
+export const invoiceService = {
+  getAll: async (filters?: InvoiceFilters): Promise<Invoice[]> => {
+    const { data } = await apiClient.get<{ invoices: Invoice[] }>(
+      API_ROUTES.INVOICES,
+      { params: filters }
+    );
+    return data.invoices;
+  },
+
+  getById: async (id: string): Promise<Invoice> => {
+    const { data } = await apiClient.get<Invoice>(
+      API_ROUTES.INVOICE_BY_ID(id)
+    );
+    return data;
+  },
+
+  create: async (invoiceData: CreateInvoiceData): Promise<Invoice> => {
+    const { data } = await apiClient.post<Invoice>(
+      API_ROUTES.INVOICES,
+      invoiceData
+    );
+    return data;
+  },
+
+  send: async (id: string, email?: string): Promise<{ sent: boolean }> => {
+    const { data } = await apiClient.post(
+      API_ROUTES.INVOICE_SEND(id),
+      { email }
+    );
+    return data;
+  },
+};
+```
+
+#### Hooks (`features/invoicing/hooks/useInvoices.ts`)
+
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { QUERY_KEYS } from '@/lib/constants';
+import { invoiceService } from '../services/invoice.service';
+import type { CreateInvoiceData, InvoiceFilters } from '../types/invoice.types';
+
+export const useInvoicesQuery = (filters?: InvoiceFilters) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.INVOICES_FILTERED(filters),
+    queryFn: () => invoiceService.getAll(filters),
+  });
+};
+
+export const useInvoiceQuery = (id: string) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.INVOICE_DETAIL(id),
+    queryFn: () => invoiceService.getById(id),
+    enabled: !!id,
+  });
+};
+
+export const useCreateInvoiceMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: invoiceService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INVOICES });
+      toast.success('Factura creada exitosamente');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al crear factura');
+    },
+  });
+};
+
+export const useSendInvoiceMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, email }: { id: string; email?: string }) =>
+      invoiceService.send(id, email),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.INVOICE_DETAIL(variables.id) 
+      });
+      toast.success('Factura enviada exitosamente');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al enviar factura');
+    },
+  });
+};
+```
+
+---
+
+## 7. Layout Components
+
+### 7.1 Dashboard Layout (`app/(dashboard)/layout.tsx`)
+
+```typescript
+import { Sidebar } from '@/components/layout/Sidebar';
+import { Header } from '@/components/layout/Header';
+import { AiDrawer } from '@/components/layout/AiDrawer';
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex h-screen overflow-hidden">
+      {/* Sidebar - Desktop */}
+      <Sidebar className="hidden lg:flex" />
+      
+      {/* Main Content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Header />
+        
+        <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
+      
+      {/* AI Assistant Drawer */}
+      <AiDrawer />
+    </div>
+  );
+}
+```
+
+### 7.2 Sidebar Component (`components/layout/Sidebar.tsx`)
+
+```typescript
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Calculator, 
+  Building2, 
+  CreditCard, 
+  Settings,
+  Cloud
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { APP_ROUTES } from '@/lib/constants';
+
+const navigation = [
+  { name: 'Dashboard', href: APP_ROUTES.DASHBOARD, icon: LayoutDashboard },
+  { name: 'Facturas', href: APP_ROUTES.INVOICES, icon: FileText },
+  { 
+    name: 'Contabilidad', 
+    icon: Calculator,
+    children: [
+      { name: 'Libro Diario', href: APP_ROUTES.ACCOUNTING_LEDGER },
+      { name: 'Form 29', href: APP_ROUTES.ACCOUNTING_F29 },
+      { name: 'Balance', href: APP_ROUTES.ACCOUNTING_BALANCE },
+      { name: 'Auditoría', href: APP_ROUTES.ACCOUNTING_AUDIT },
+    ]
+  },
+  { 
+    name: 'SII', 
+    icon: Cloud,
+    children: [
+      { name: 'Sincronizar', href: APP_ROUTES.SII_SYNC },
+      { name: 'CAF', href: APP_ROUTES.SII_CAF },
+    ]
+  },
+  { name: 'Conciliación', href: APP_ROUTES.BANKING_RECONCILIATION, icon: CreditCard },
+  { name: 'Configuración', href: APP_ROUTES.SETTINGS_COMPANY, icon: Settings },
+];
+
+interface SidebarProps {
+  className?: string;
+}
+
+export function Sidebar({ className }: SidebarProps) {
+  const pathname = usePathname();
+
+  return (
+    <aside className={cn('w-64 border-r bg-card', className)}>
+      <div className="flex h-full flex-col">
+        {/* Logo */}
+        <div className="flex h-16 items-center border-b px-6">
+          <Link href={APP_ROUTES.DASHBOARD} className="flex items-center space-x-2">
+            <Building2 className="h-6 w-6" />
+            <span className="text-lg font-bold">SII-ERP-AI</span>
+          </Link>
+        </div>
+
+
+
+# SII-ERP-AI Frontend - Especificación Técnica Completa (Parte 2)
+
+## 7. Layout Components (Continuación)
+
+### 7.2 Sidebar Component (Continuación)
+
+```typescript
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+          {navigation.map((item) => (
+            <div key={item.name}>
+              {item.children ? (
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground">
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.name}</span>
+                  </div>
+                  <div className="ml-8 space-y-1">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={cn(
+                          'block rounded-md px-3 py-2 text-sm transition-colors',
+                          pathname === child.href
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        )}
+                      >
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    pathname === item.href
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span>{item.name}</span>
+                </Link>
+              )}
+            </div>
+          ))}
+        </nav>
+
+        {/* Company Selector */}
+        <div className="border-t p-4">
+          <CompanySelector />
+        </div>
+      </div>
+    </aside>
+  );
+}
+```
+
+### 7.3 Header Component (`components/layout/Header.tsx`)
+
+```typescript
+'use client';
+
+import { Menu, Search, Bot, Bell, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuthStore } from '@/features/auth/stores/auth.store';
+import { useLogout } from '@/features/auth/hooks/useAuth';
+import { useMobileNav } from '@/hooks/useMobileNav';
+import { useAiDrawer } from '@/features/ai-assistant/stores/chat.store';
+
+export function Header() {
+  const { user } = useAuthStore();
+  const { mutate: logout } = useLogout();
+  const { toggle: toggleMobileNav } = useMobileNav();
+  const { toggle: toggleAiDrawer } = useAiDrawer();
+
+  const handleLogout = () => {
+    if (confirm('¿Seguro que deseas cerrar sesión?')) {
+      logout();
+    }
+  };
+
+  return (
+    <header className="sticky top-0 z-40 flex h-16 items-center border-b bg-background px-4 md:px-6">
+      <div className="flex flex-1 items-center space-x-4">
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={toggleMobileNav}
+        >
+          <Menu className="h-6 w-6" />
+        </Button>
+
+        {/* Search Bar */}
+        <div className="hidden flex-1 md:block md:max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar facturas, cuentas..."
+              className="pl-10"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        {/* AI Assistant Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleAiDrawer}
+          className="hidden gap-2 md:flex"
+        >
+          <Bot className="h-4 w-4" />
+          <span>Asistente AI</span>
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </Button>
+
+        {/* AI Button Mobile */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={toggleAiDrawer}
+        >
+          <Bot className="h-5 w-5" />
+        </Button>
+
+        {/* Notifications */}
+        <Button variant="ghost" size="icon">
+          <Bell className="h-5 w-5" />
+        </Button>
+
+        {/* User Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Avatar>
+                <AvatarImage src="" alt={user?.name} />
+                <AvatarFallback>
+                  {user?.name.split(' ').map(n => n[0]).join('')}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium">{user?.name}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>Perfil</DropdownMenuItem>
+            <DropdownMenuItem>Configuración</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Cerrar sesión</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
+  );
+}
+```
+
+### 7.4 AI Drawer Component (`components/layout/AiDrawer.tsx`)
+
+```typescript
+'use client';
+
+import { useEffect } from 'react';
+import { X, Bot } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { ChatInterface } from '@/features/ai-assistant/components/ChatInterface';
+import { useAiDrawer } from '@/features/ai-assistant/stores/chat.store';
+
+export function AiDrawer() {
+  const { isOpen, close } = useAiDrawer();
+
+  // Keyboard shortcut: Cmd/Ctrl + K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        useAiDrawer.getState().toggle();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <Sheet open={isOpen} onOpenChange={close}>
+      <SheetContent side="right" className="w-full sm:max-w-xl">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            Asistente AI Contable
+          </SheetTitle>
+          <SheetDescription>
+            Consulta información, genera reportes y analiza datos financieros con IA
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4 flex h-[calc(100vh-8rem)] flex-col">
+          <ChatInterface />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+### 7.5 Mobile Navigation (`components/layout/MobileNav.tsx`)
+
+```typescript
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Building2 } from 'lucide-react';
+import { useMobileNavStore } from '@/stores/mobileNav.store';
+import { cn } from '@/lib/utils';
+import { APP_ROUTES } from '@/lib/constants';
+
+const navigation = [
+  /* Same as Sidebar */
+];
+
+export function MobileNav() {
+  const { isOpen, close } = useMobileNavStore();
+  const pathname = usePathname();
+
+  return (
+    <Sheet open={isOpen} onOpenChange={close}>
+      <SheetContent side="left" className="w-80">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Building2 className="h-6 w-6" />
+            SII-ERP-AI
+          </SheetTitle>
+        </SheetHeader>
+
+        <nav className="mt-8 space-y-1">
+          {navigation.map((item) => (
+            <div key={item.name}>
+              {item.children ? (
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2 px-3 py-2 text-sm font-medium">
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.name}</span>
+                  </div>
+                  <div className="ml-8 space-y-1">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={close}
+                        className={cn(
+                          'block rounded-md px-3 py-2 text-sm',
+                          pathname === child.href
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:bg-accent'
+                        )}
+                      >
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  href={item.href}
+                  onClick={close}
+                  className={cn(
+                    'flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium',
+                    pathname === item.href
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent'
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span>{item.name}</span>
+                </Link>
+              )}
+            </div>
+          ))}
+        </nav>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+### 7.6 Company Selector (`components/layout/CompanySelector.tsx`)
+
+```typescript
+'use client';
+
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { useAuthStore } from '@/features/auth/stores/auth.store';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
+
+export function CompanySelector() {
+  const [open, setOpen] = useState(false);
+  const { companies, companyId, switchCompany } = useAuthStore();
+
+  const selectedCompany = companies.find((c) => c.id === companyId);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+        >
+          <span className="truncate">
+            {selectedCompany?.razonSocial || 'Seleccionar empresa'}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0">
+        <Command>
+          <CommandInput placeholder="Buscar empresa..." />
+          <CommandEmpty>No se encontraron empresas.</CommandEmpty>
+          <CommandGroup>
+            {companies.map((company) => (
+              <CommandItem
+                key={company.id}
+                value={company.id}
+                onSelect={() => {
+                  switchCompany(company.id);
+                  setOpen(false);
+                }}
+              >
+                <Check
+                  className={cn(
+                    'mr-2 h-4 w-4',
+                    companyId === company.id ? 'opacity-100' : 'opacity-0'
+                  )}
+                />
+                <div className="flex flex-col">
+                  <span className="font-medium">{company.razonSocial}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {company.rut}
+                  </span>
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+```
+
+---
+
+## 8. Shared Components
+
+### 8.1 Status Badge (`components/shared/StatusBadge.tsx`)
+
+```typescript
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+const statusConfig = {
+  DRAFT: { label: 'Borrador', variant: 'secondary' },
+  SIGNED: { label: 'Firmado', variant: 'default' },
+  SENT: { label: 'Enviado', variant: 'default' },
+  ACCEPTED: { label: 'Aceptado', variant: 'success' },
+  REJECTED: { label: 'Rechazado', variant: 'destructive' },
+} as const;
+
+interface StatusBadgeProps {
+  status: keyof typeof statusConfig;
+  className?: string;
+}
+
+export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const config = statusConfig[status];
+  
+  return (
+    <Badge
+      variant={config.variant as any}
+      className={cn('font-medium', className)}
+    >
+      {config.label}
+    </Badge>
+  );
+}
+```
+
+### 8.2 Currency Display (`components/shared/CurrencyDisplay.tsx`)
+
+```typescript
+import { formatCLP } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
+
+interface CurrencyDisplayProps {
+  amount: string | number;
+  className?: string;
+  showSymbol?: boolean;
+  variant?: 'default' | 'positive' | 'negative';
+}
+
+export function CurrencyDisplay({
+  amount,
+  className,
+  showSymbol = true,
+  variant = 'default',
+}: CurrencyDisplayProps) {
+  const formatted = formatCLP(amount, showSymbol);
+  
+  return (
+    <span
+      className={cn(
+        'font-mono',
+        variant === 'positive' && 'text-green-600',
+        variant === 'negative' && 'text-red-600',
+        className
+      )}
+    >
+      {formatted}
+    </span>
+  );
+}
+```
+
+### 8.3 RUT Input (`components/shared/RutInput.tsx`)
+
+```typescript
+'use client';
+
+import { forwardRef, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { formatRut, validateRut } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
+
+interface RutInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {
+  onValueChange?: (value: string) => void;
+}
+
+export const RutInput = forwardRef<HTMLInputElement, RutInputProps>(
+  ({ className, onValueChange, onChange, ...props }, ref) => {
+    const [isValid, setIsValid] = useState<boolean | null>(null);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      const formatted = formatRut(value);
+      e.target.value = formatted;
+
+      // Validate only if has minimum length
+      if (formatted.length >= 3) {
+        setIsValid(validateRut(formatted));
+      } else {
+        setIsValid(null);
+      }
+
+      onValueChange?.(formatted);
+      onChange?.(e);
+    };
+
+    return (
+      <div className="relative">
+        <Input
+          ref={ref}
+          type="text"
+          placeholder="12.345.678-9"
+          onChange={handleChange}
+          className={cn(
+            className,
+            isValid === false && 'border-red-500 focus-visible:ring-red-500',
+            isValid === true && 'border-green-500 focus-visible:ring-green-500'
+          )}
+          {...props}
+        />
+        {isValid === false && (
+          <p className="mt-1 text-xs text-red-500">RUT inválido</p>
+        )}
+      </div>
+    );
+  }
+);
+
+RutInput.displayName = 'RutInput';
+```
+
+### 8.4 Date Range Picker (`components/shared/DateRangePicker.tsx`)
+
+```typescript
+'use client';
+
+import { useState } from 'react';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+
+interface DateRangePickerProps {
+  value?: DateRange;
+  onChange?: (range: DateRange | undefined) => void;
+  className?: string;
+}
+
+export function DateRangePicker({
+  value,
+  onChange,
+  className,
+}: DateRangePickerProps) {
+  const [date, setDate] = useState<DateRange | undefined>(value);
+
+  const handleSelect = (range: DateRange | undefined) => {
+    setDate(range);
+    onChange?.(range);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            'justify-start text-left font-normal',
+            !date && 'text-muted-foreground',
+            className
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {date?.from ? (
+            date.to ? (
+              <>
+                {format(date.from, 'dd/MM/yyyy', { locale: es })} -{' '}
+                {format(date.to, 'dd/MM/yyyy', { locale: es })}
+              </>
+            ) : (
+              format(date.from, 'dd/MM/yyyy', { locale: es })
+            )
+          ) : (
+            <span>Seleccionar rango de fechas</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          initialFocus
+          mode="range"
+          defaultMonth={date?.from}
+          selected={date}
+          onSelect={handleSelect}
+          numberOfMonths={2}
+          locale={es}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+```
+
+### 8.5 Loading Skeleton (`components/shared/LoadingSkeleton.tsx`)
+
+```typescript
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+
+interface LoadingSkeletonProps {
+  variant?: 'table' | 'card' | 'form';
+  rows?: number;
+  className?: string;
+}
+
+export function LoadingSkeleton({
+  variant = 'card',
+  rows = 3,
+  className,
+}: LoadingSkeletonProps) {
+  if (variant === 'table') {
+    return (
+      <div className={cn('space-y-3', className)}>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="flex space-x-4">
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (variant === 'form') {
+    return (
+      <div className={cn('space-y-4', className)}>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('space-y-4', className)}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="rounded-lg border p-6">
+          <Skeleton className="mb-4 h-6 w-48" />
+          <Skeleton className="mb-2 h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+---
+
+## 9. Page Implementations
+
+### 9.1 Dashboard Home (`app/(dashboard)/page.tsx`)
+
+```typescript
+import { Suspense } from 'react';
+import { DashboardStats } from '@/features/dashboard/components/DashboardStats';
+import { RecentInvoices } from '@/features/dashboard/components/RecentInvoices';
+import { CashFlowChart } from '@/features/dashboard/components/CashFlowChart';
+import { LoadingSkeleton } from '@/components/shared/LoadingSkeleton';
+
+export default function DashboardPage() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Resumen de tu situación contable actual
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <Suspense fallback={<LoadingSkeleton variant="card" rows={4} />}>
+        <DashboardStats />
+      </Suspense>
+
+      {/* Charts & Recent Data */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Suspense fallback={<LoadingSkeleton variant="card" />}>
+          <CashFlowChart />
+        </Suspense>
+
+        <Suspense fallback={<LoadingSkeleton variant="card" />}>
+          <RecentInvoices />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+```
+
+### 9.2 Dashboard Stats Component (`features/dashboard/components/DashboardStats.tsx`)
+
+```typescript
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
+import { FileText, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { apiClient } from '@/lib/axios';
+
+interface DashboardStatsData {
+  totalInvoices: number;
+  pendingInvoices: number;
+  totalRevenue: string;
+  pendingPayments: string;
+}
+
+export function DashboardStats() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<DashboardStatsData>('/dashboard/stats');
+      return data;
+    },
+  });
+
+  if (isLoading) return null;
+
+  const stats = [
+    {
+      title: 'Total Facturas',
+      value: data?.totalInvoices || 0,
+      icon: FileText,
+      variant: 'default' as const,
+    },
+    {
+      title: 'Facturas Pendientes',
+      value: data?.pendingInvoices || 0,
+      icon: Clock,
+      variant: 'warning' as const,
+    },
+    {
+      title: 'Ingresos Totales',
+      value: <CurrencyDisplay amount={data?.totalRevenue || '0'} />,
+      icon: TrendingUp,
+      variant: 'success' as const,
+    },
+    {
+      title: 'Pagos Pendientes',
+      value: <CurrencyDisplay amount={data?.pendingPayments || '0'} />,
+      icon: TrendingDown,
+      variant: 'destructive' as const,
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {stats.map((stat) => (
+        <Card key={stat.title}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {stat.title}
+            </CardTitle>
+            <stat.icon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stat.value}</div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+```
+
+### 9.3 Invoices List Page (`app/(dashboard)/invoices/page.tsx`)
+
+```typescript
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { InvoiceTable } from '@/features/invoicing/components/InvoiceTable';
+import { InvoiceFilters } from '@/features/invoicing/components/InvoiceFilters';
+import { APP_ROUTES } from '@/lib/constants';
+import type { InvoiceFilters as IInvoiceFilters } from '@/features/invoicing/types/invoice.types';
+
+export default function InvoicesPage() {
+  const [filters, setFilters] = useState<IInvoiceFilters>({});
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Facturas</h1>
+          <p className="text-muted-foreground">
+            Gestiona tus documentos tributarios electrónicos
+          </p>
+        </div>
+        <Link href={APP_ROUTES.INVOICES_NEW}>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Factura
+          </Button>
+        </Link>
+      </div>
+
+      {/* Filters */}
+      <InvoiceFilters filters={filters} onFiltersChange={setFilters} />
+
+      {/* Table */}
+      <InvoiceTable filters={filters} />
+    </div>
+  );
+}
+```
+
+### 9.4 Invoice Table Component (`features/invoicing/components/InvoiceTable.tsx`)
+
+```typescript
+'use client';
+
+import Link from 'next/link';
+import { MoreHorizontal, Eye, Send } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay';
+import { LoadingSkeleton } from '@/components/shared/LoadingSkeleton';
+import { useInvoicesQuery, useSendInvoiceMutation } from '../hooks/useInvoices';
+import { formatDate } from '@/lib/formatters';
+import { APP_ROUTES } from '@/lib/constants';
+import type { InvoiceFilters } from '../types/invoice.types';
+
+interface InvoiceTableProps {
+  filters?: InvoiceFilters;
+}
+
+export function InvoiceTable({ filters }: InvoiceTableProps) {
+  const { data: invoices, isLoading } = useInvoicesQuery(filters);
+  const { mutate: sendInvoice } = useSendInvoiceMutation();
+
+  if (isLoading) {
+    return <LoadingSkeleton variant="table" rows={5} />;
+  }
+
+  if (!invoices?.length) {
+    return (
+      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold">No hay facturas</h3>
+          <p className="text-sm text-muted-foreground">
+            Comienza creando tu primera factura
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Folio</TableHead>
+            <TableHead>Fecha</TableHead>
+            <TableHead>Receptor</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead className="w-[50px]"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {invoices.map((invoice) => (
+<TableRow key={invoice.id}>
+<TableCell className="font-mono">{invoice.folio}</TableCell>
+<TableCell>{formatDate(invoice.issueDate)}</TableCell>
+<TableCell>
+<div>
+<div className="font-medium">{invoice.recipientName}</div>
+<div className="text-sm text-muted-foreground">
+{invoice.recipientRut}
+</div>
+</div>
+</TableCell>
+<TableCell>
+<CurrencyDisplay amount={invoice.totalAmount} />
+</TableCell>
+<TableCell>
+<StatusBadge status={invoice.status} />
+</TableCell>
+<TableCell>
+<DropdownMenu>
+<DropdownMenuTrigger asChild>
+<Button variant="ghost" size="icon">
+<MoreHorizontal className="h-4 w-4" />
+</Button>
+</DropdownMenuTrigger>
+<DropdownMenuContent align="end">
+<DropdownMenuLabel>Acciones</DropdownMenuLabel>
+<DropdownMenuItem asChild>
+<Link href={APP_ROUTES.INVOICE_DETAIL(invoice.id)}>
+<Eye className="mr-2 h-4 w-4" />
+Ver Detalle
+</Link>
+</DropdownMenuItem>
+{invoice.status === 'SIGNED' && (
+<DropdownMenuItem
+onClick={() => sendInvoice({ id: invoice.id })}
+>
+<Send className="mr-2 h-4 w-4" />
+Enviar al SII
+</DropdownMenuItem>
+)}
+</DropdownMenuContent>
+</DropdownMenu>
+</TableCell>
+</TableRow>
+))}
+</TableBody>
+</Table>
+</div>
+);
+}
+
+
+### 9.5 Invoice Form Page (`app/(dashboard)/invoices/new/page.tsx`)
+```typescript
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { InvoiceForm } from '@/features/invoicing/components/InvoiceForm';
+import { useCreateInvoiceMutation } from '@/features/invoicing/hooks/useInvoices';
+import { APP_ROUTES } from '@/lib/constants';
+import type { CreateInvoiceData } from '@/features/invoicing/types/invoice.types';
+
+export default function NewInvoicePage() {
+  const router = useRouter();
+  const { mutate: createInvoice, isPending } = useCreateInvoiceMutation();
+
+  const handleSubmit = (data: CreateInvoiceData) => {
+    createInvoice(data, {
+      onSuccess: (invoice) => {
+        router.push(APP_ROUTES.INVOICE_DETAIL(invoice.id));
+      },
+    });
+  };
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Nueva Factura</h1>
+        <p className="text-muted-foreground">
+          Complete los datos para generar una nueva factura electrónica
+        </p>
+      </div>
+
+      <InvoiceForm onSubmit={handleSubmit} isLoading={isPending} />
+    </div>
+  );
+}
+```
+
+### 9.6 Invoice Form Component (`features/invoicing/components/InvoiceForm.tsx`)
+```typescript
+'use client';
+
+import { useFieldArray, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { RutInput } from '@/components/shared/RutInput';
+import { invoiceSchema } from '@/lib/validators';
+import { INVOICE_TYPES } from '@/lib/constants';
+import { calculateWithIVA, formatCLP } from '@/lib/formatters';
+import { parseAmount } from '@/lib/formatters';
+import type { CreateInvoiceData } from '../types/invoice.types';
+
+interface InvoiceFormProps {
+  onSubmit: (data: CreateInvoiceData) => void;
+  isLoading?: boolean;
+  defaultValues?: Partial<CreateInvoiceData>;
+}
+
+export function InvoiceForm({
+  onSubmit,
+  isLoading,
+  defaultValues,
+}: InvoiceFormProps) {
+  const form = useForm<CreateInvoiceData>({
+    resolver: zodResolver(invoiceSchema),
+    defaultValues: defaultValues || {
+      type: INVOICE_TYPES.FACTURA_ELECTRONICA,
+      folio: 1,
+      issuerRut: '',
+      recipientRut: '',
+      recipientName: '',
+      issueDate: new Date().toISOString().split('T')[0],
+      lines: [{ description: '', quantity: 1, unitPrice: '0' }],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'lines',
+  });
+
+  const lines = form.watch('lines');
+  const totals = lines.reduce(
+    (acc, line) => {
+      const lineTotal = parseAmount(line.unitPrice).times(line.quantity);
+      return acc.plus(lineTotal);
+    },
+    parseAmount(0)
+  );
+
+  const { net, iva, total } = calculateWithIVA(totals.toString());
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Invoice Header */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Datos de la Factura</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Documento</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      defaultValue={field.value?.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="33">Factura Electrónica</SelectItem>
+                        <SelectItem value="34">Factura Exenta</SelectItem>
+                        <SelectItem value="39">Boleta Electrónica</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="folio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Folio</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="issuerRut"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>RUT Emisor</FormLabel>
+                    <FormControl>
+                      <RutInput {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="issueDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha Emisión</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="recipientRut"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>RUT Receptor</FormLabel>
+                    <FormControl>
+                      <RutInput {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="recipientName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre/Razón Social Receptor</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Empresa o Persona" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Invoice Lines */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Detalle de Items</CardTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                append({ description: '', quantity: 1, unitPrice: '0' })
+              }
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Agregar Item
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {fields.map((field, index) => (
+              <div key={field.id} className="flex gap-4">
+                <FormField
+                  control={form.control}
+                  name={`lines.${index}.description`}
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      {index === 0 && <FormLabel>Descripción</FormLabel>}
+                      <FormControl>
+                        <Input placeholder="Descripción del item" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name={`lines.${index}.quantity`}
+                  render={({ field }) => (
+                    <FormItem className="w-24">
+                      {index === 0 && <FormLabel>Cantidad</FormLabel>}
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(parseInt(e.target.value))
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name={`lines.${index}.unitPrice`}
+                  render={({ field }) => (
+                    <FormItem className="w-32">
+                      {index === 0 && <FormLabel>Precio Unit.</FormLabel>}
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {fields.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => remove(index)}
+                    className={index === 0 ? 'mt-8' : ''}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Totals */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Neto:</span>
+                <span className="font-mono">{formatCLP(net)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">IVA (19%):</span>
+                <span className="font-mono">{formatCLP(iva)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 text-lg font-bold">
+                <span>Total:</span>
+                <span className="font-mono">{formatCLP(total)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-4">
+          <Button type="button" variant="outline">
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? 'Creando...' : 'Crear Factura'}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+```
+
+---
+
+## 10. AI Assistant Implementation
+
+### 10.1 AI Store (`features/ai-assistant/stores/chat.store.ts`)
+```typescript
+import { create } from 'zustand';
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  toolUsed?: {
+    name: string;
+    result: any;
+  };
+  timestamp: Date;
+}
+
+interface AiDrawerState {
+  isOpen: boolean;
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+}
+
+interface ChatState {
+  conversationId: string | null;
+  messages: Message[];
+  isLoading: boolean;
+  
+  addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
+  setLoading: (loading: boolean) => void;
+  clearConversation: () => void;
+  setConversationId: (id: string) => void;
+}
+
+export const useAiDrawer = create<AiDrawerState>((set) => ({
+  isOpen: false,
+  open: () => set({ isOpen: true }),
+  close: () => set({ isOpen: false }),
+  toggle: () => set((state) => ({ isOpen: !state.isOpen })),
+}));
+
+export const useChatStore = create<ChatState>((set) => ({
+  conversationId: null,
+  messages: [],
+  isLoading: false,
+  
+  addMessage: (message) =>
+    set((state) => ({
+      messages: [
+        ...state.messages,
+        {
+          ...message,
+          id: `msg-${Date.now()}`,
+          timestamp: new Date(),
+        },
+      ],
+    })),
+  
+  setLoading: (loading) => set({ isLoading: loading }),
+  
+  clearConversation: () =>
+    set({ messages: [], conversationId: null }),
+  
+  setConversationId: (id) => set({ conversationId: id }),
+}));
+```
+
+### 10.2 AI Service (`features/ai-assistant/services/ai.service.ts`)
+```typescript
+import { apiClient } from '@/lib/axios';
+import { API_ROUTES } from '@/lib/constants';
+
+export interface ChatRequest {
+  message: string;
+  conversationId?: string;
+}
+
+export interface ChatResponse {
+  response: string;
+  conversationId: string;
+  toolUsed?: {
+    name: string;
+    result: any;
+  };
+}
+
+export const aiService = {
+  sendMessage: async (request: ChatRequest): Promise<ChatResponse> => {
+    const { data } = await apiClient.post<ChatResponse>(
+      API_ROUTES.AI_CHAT,
+      request
+    );
+    return data;
+  },
+};
+```
+
+### 10.3 AI Hooks (`features/ai-assistant/hooks/useChat.ts`)
+```typescript
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { aiService } from '../services/ai.service';
+import { useChatStore } from '../stores/chat.store';
+
+export const useChat = () => {
+  const { addMessage, setLoading, conversationId, setConversationId } = useChatStore();
+
+  const mutation = useMutation({
+    mutationFn: aiService.sendMessage,
+    onMutate: (request) => {
+      // Add user message immediately
+      addMessage({
+        role: 'user',
+        content: request.message,
+      });
+      setLoading(true);
+    },
+    onSuccess: (response) => {
+      // Add AI response
+      addMessage({
+        role: 'assistant',
+        content: response.response,
+        toolUsed: response.toolUsed,
+      });
+      
+      // Update conversation ID if new
+      if (!conversationId) {
+        setConversationId(response.conversationId);
+      }
+      
+      setLoading(false);
+    },
+    onError: (error: Error) => {
+      setLoading(false);
+      toast.error(error.message || 'Error al enviar mensaje');
+    },
+  });
+
+  const sendMessage = (message: string) => {
+    mutation.mutate({
+      message,
+      conversationId: conversationId || undefined,
+    });
+  };
+
+  return {
+    sendMessage,
+    isLoading: mutation.isPending,
+  };
+};
+```
+
+### 10.4 Chat Interface (`features/ai-assistant/components/ChatInterface.tsx`)
+```typescript
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { MessageList } from './MessageList';
+import { ChatInput } from './ChatInput';
+import { useChatStore } from '../stores/chat.store';
+import { useChat } from '../hooks/useChat';
+
+export function ChatInterface() {
+  const { messages, clearConversation } = useChatStore();
+  const { sendMessage, isLoading } = useChat();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {messages.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-center">
+            <div className="space-y-2">
+              <p className="text-lg font-semibold">¿En qué puedo ayudarte?</p>
+              <p className="text-sm text-muted-foreground">
+                Pregúntame sobre facturas, contabilidad, reportes y más
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <MessageList messages={messages} />
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="border-t p-4">
+        <ChatInput
+          onSend={sendMessage}
+          isLoading={isLoading}
+          onClear={clearConversation}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+### 10.5 Message List (`features/ai-assistant/components/MessageList.tsx`)
+```typescript
+import { ChatBubble } from './ChatBubble';
+import type { Message } from '../stores/chat.store';
+
+interface MessageListProps {
+  messages: Message[];
+}
+
+export function MessageList({ messages }: MessageListProps) {
+  return (
+    <div className="space-y-4">
+      {messages.map((message) => (
+        <ChatBubble key={message.id} message={message} />
+      ))}
+    </div>
+  );
+}
+```
+
+### 10.6 Chat Bubble (`features/ai-assistant/components/ChatBubble.tsx`)
+```typescript
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Bot, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ToolResponse } from './ToolResponse';
+import type { Message } from '../stores/chat.store';
+
+interface ChatBubbleProps {
+  message: Message;
+}
+
+export function ChatBubble({ message }: ChatBubbleProps) {
+  const isUser = message.role === 'user';
+
+  return (
+    <div
+      className={cn(
+        'flex gap-3',
+        isUser ? 'justify-end' : 'justify-start'
+      )}
+    >
+      {!isUser && (
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Bot className="h-4 w-4" />
+        </div>
+      )}
+
+      <div
+        className={cn(
+          'max-w-[80%] rounded-lg px-4 py-2',
+          isUser
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted'
+        )}
+      >
+        {isUser ? (
+          <p className="text-sm">{message.content}</p>
+        ) : (
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
+            
+            {message.toolUsed && (
+              <ToolResponse tool={message.toolUsed} />
+            )}
+          </div>
+        )}
+      </div>
+
+      {isUser && (
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+          <User className="h-4 w-4" />
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### 10.7 Chat Input (`features/ai-assistant/components/ChatInput.tsx`)
+```typescript
+'use client';
+
+import { useState } from 'react';
+import { Send, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+
+interface ChatInputProps {
+  onSend: (message: string) => void;
+  isLoading: boolean;
+  onClear: () => void;
+}
+
+export function ChatInput({ onSend, isLoading, onClear }: ChatInputProps) {
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!message.trim() || isLoading) return;
+    
+    onSend(message);
+    setMessage('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <Textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Escribe tu pregunta... (Enter para enviar, Shift+Enter para nueva línea)"
+        className="min-h-[80px] resize-none"
+        disabled={isLoading}
+      />
+      
+      <div className="flex justify-between">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Limpiar
+        </Button>
+        
+        <Button
+          type="submit"
+          size="sm"
+          disabled={!message.trim() || isLoading}
+        >
+          {isLoading ? (
+            'Enviando...'
+          ) : (
+            <>
+              <Send className="mr-2 h-4 w-4" />
+              Enviar
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}
+```
+
+### 10.8 Tool Response (`features/ai-assistant/components/ToolResponse.tsx`)
+```typescript
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileText, Calculator, TrendingUp } from 'lucide-react';
+
+const toolIcons = {
+  search_invoices: FileText,
+  calculate_f29: Calculator,
+  get_balance: TrendingUp,
+};
+
+interface ToolResponseProps {
+  tool: {
+    name: string;
+    result: any;
+  };
+}
+
+export function ToolResponse({ tool }: ToolResponseProps) {
+  const Icon = toolIcons[tool.name as keyof typeof toolIcons] || FileText;
+
+  return (
+    <Card className="mt-4">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <Icon className="h-4 w-4" />
+          {getToolTitle(tool.name)}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <pre className="overflow-x-auto rounded bg-muted p-2 text-xs">
+          {JSON.stringify(tool.result, null, 2)}
+        </pre>
+      </CardContent>
+    </Card>
+  );
+}
+
+function getToolTitle(toolName: string): string {
+  const titles: Record<string, string> = {
+    search_invoices: 'Búsqueda de Facturas',
+    calculate_f29: 'Cálculo Form 29',
+    get_balance: 'Balance General',
+  };
+  
+  return titles[toolName] || toolName;
+}
+```
+
+---
+
+## 11. Testing Setup
+
+### 11.1 Vitest Configuration (`vitest.config.ts`)
+```typescript
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./tests/setup.ts'],
+    globals: true,
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+});
+```
+
+### 11.2 Test Setup (`tests/setup.ts`)
+```typescript
+import '@testing-library/jest-dom';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
+// Cleanup after each test
+afterEach(() => {
+  cleanup();
+});
+
+// Mock Next.js router
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+}));
+```
+
+### 11.3 MSW Handlers (`tests/mocks/handlers.ts`)
+```typescript
+import { http, HttpResponse } from 'msw';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+export const handlers = [
+  // Auth
+  http.post(`${API_URL}/auth/login`, () => {
+    return HttpResponse.json({
+      token: 'mock-token',
+      user: {
+        id: '1',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'ADMIN',
+      },
+      companyId: 'company-1',
+    });
+  }),
+
+  // Invoices
+  http.get(`${API_URL}/invoices`, () => {
+    return HttpResponse.json({
+      invoices: [
+        {
+          id: '1',
+          folio: 1001,
+          recipientName: 'Test Client',
+          totalAmount: '119000',
+          status: 'ACCEPTED',
+        },
+      ],
+    });
+  }),
+];
+```
+
+### 11.4 Test Utils (`tests/utils/test-utils.tsx`)
+```typescript
+import { ReactElement } from 'react';
+import { render, RenderOptions } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
+
+function AllTheProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+}
+
+function customRender(
+  ui: ReactElement,
+  options?: Omit<RenderOptions, 'wrapper'>
+) {
+  return render(ui, { wrapper: AllTheProviders, ...options });
+}
+
+export * from '@testing-library/react';
+export { customRender as render };
+```
+
+### 11.5 Example Test (`features/auth/components/__tests__/LoginForm.test.tsx`)
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@/tests/utils/test-utils';
+import { LoginForm } from '../LoginForm';
+import * as authHooks from '../../hooks/useAuth';
+
+describe('LoginForm', () => {
+  it('renders login form', () => {
+    vi.spyOn(authHooks, 'useLogin').mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as any);
+
+    render(<LoginForm />);
+    
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /iniciar sesión/i })).toBeInTheDocument();
+  });
+
+  it('submits form with valid data', async () => {
+    const mockLogin = vi.fn();
+    vi.spyOn(authHooks, 'useLogin').mockReturnValue({
+      mutate: mockLogin,
+      isPending: false,
+    } as any);
+
+    render(<LoginForm />);
+    
+    const emailInput = screen.getByLabelText(/email/i);
+    const passwordInput = screen.getByLabelText(/contraseña/i);
+    const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
+
+    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+    fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockLogin).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+    });
+  });
+
+  it('shows validation errors', async () => {
+    vi.spyOn(authHooks, 'useLogin').mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    } as any);
+
+    render(<LoginForm />);
+    
+    const submitButton = screen.getByRole('button', { name: /iniciar sesión/i });
+
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/email inválido/i)).toBeInTheDocument();
+    });
+  });
+});
+```
+
+---
+
+## 12. Implementation Roadmap
+
+### Phase 1: Foundation (Week 1)
+**Objetivo**: Proyecto inicializado con autenticación funcional
+
+1. **Setup Inicial**
+   - Inicializar Next.js 14 con TypeScript
+   - Configurar Tailwind + shadcn/ui
+   - Setup de TanStack Query + Zustand
+   - Configurar Axios con interceptores
+
+2. **Auth Feature**
+   - Implementar auth store (Zustand)
+   - Crear LoginForm y RegisterForm
+   - Middleware de autenticación
+   - Páginas de login/register
+
+3. **Layout Base**
+   - Root layout con Providers
+   - Dashboard layout (Sidebar, Header)
+   - Navegación móvil
+   - Company selector
+
+**Entregable**: Usuario puede registrarse, iniciar sesión y ver dashboard vacío
+
+---
+
+### Phase 2: Core Features (Week 2-3)
+**Objetivo**: CRUD de facturas + integración SII básica
+
+4. **Invoicing Feature**
+   - Tipos e interfaces
+   - Service layer + hooks
+   - Listado de facturas con filtros
+   - Formulario de creación
+   - Detalle de factura
+
+5. **SII Integration**
+   - Tipos e interfaces
+   - Service para fetch RCV
+   - Service para upload CAF
+   - Componente de sincronización
+   - Estado de DTEs
+
+6. **Shared Components**
+   - StatusBadge
+   - CurrencyDisplay
+   - RutInput
+   - DateRangePicker
+   - LoadingSkeleton
+
+**Entregable**: Usuario puede crear, listar y sincronizar facturas con el SII
+
+---
+
+### Phase 3: Accounting (Week 4)
+**Objetivo**: Módulo contable completo
+
+7. **Accounting Feature**
+   - Libro Diario (ledger)
+   - Form 29 preview
+   - Balance Sheet (tree view con Recharts)
+   - Auditoría (alertas)
+   - Depreciación
+   - Cierre de períodos
+
+8. **Banking Feature**
+   - Upload de cartolas
+   - Vista de conciliación
+   - Matching sugerido (AI)
+   - Aplicar matches
+
+**Entregable**: Usuario puede gestionar contabilidad completa y conciliar bancos
+
+---
+
+### Phase 4: AI Assistant (Week 5)
+**Objetivo**: Asistente AI omnipresente funcional
+
+9. **AI Feature**
+   - Chat store
+   - Service layer
+   - Chat interface con markdown
+   - Tool response rendering
+   - Hotkey (Cmd+K)
+   - Drawer responsive
+
+**Entregable**: Usuario puede consultar al AI desde cualquier vista
+
+---
+
+### Phase 5: Polish & Testing (Week 6)
+**Objetivo**: Producción lista
+
+10. **Testing**
+    - Setup Vitest + MSW
+    - Tests unitarios (auth, invoicing)
+    - Tests de integración (flows)
+    - E2E básicos
+
+11. **Optimización**
+    - Lazy loading de charts
+    - Image optimization
+    - Bundle analysis
+    - PWA setup
+
+12. **Documentation**
+    - README completo
+    - API documentation
+    - Component Storybook (opcional)
+
+**Entregable**: App lista para despliegue en Vercel
+
+---
+
+## 13. Additional Stores
+
+### 13.1 Mobile Nav Store (`stores/mobileNav.store.ts`)
+
+```typescript
+import { create } from 'zustand';
+
+interface MobileNavState {
+  isOpen: boolean;
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+}
+
+export const useMobileNavStore = create<MobileNavState>((set) => ({
+  isOpen: false,
+  open: () => set({ isOpen: true }),
+  close: () => set({ isOpen: false }),
+  toggle: () => set((state) => ({ isOpen: !state.isOpen })),
+}));
+
+export const useMobileNav = () => {
+  const { toggle } = useMobileNavStore();
+  return { toggle };
+};
+```
+
+---
+
+## 14. Environment Types (`types/environment.d.ts`)
+
+```typescript
+declare namespace NodeJS {
+  interface ProcessEnv {
+    NEXT_PUBLIC_API_URL: string;
+    NEXT_PUBLIC_WS_URL: string;
+    NEXT_PUBLIC_APP_NAME: string;
+    NEXT_PUBLIC_APP_VERSION: string;
+    NEXT_PUBLIC_ENABLE_PWA: string;
+    NEXT_PUBLIC_ENABLE_AI_STREAMING: string;
+    NEXT_PUBLIC_DEFAULT_LOCALE: string;
+    NEXT_PUBLIC_CURRENCY: string;
+  }
+}
+```
+
+---
+
+## 15. Key Commands & Scripts
+
+```bash
+# Development
+npm run dev              # Start dev server (localhost:3000)
+npm run build            # Build for production
+npm run start            # Start production server
+npm run lint             # Run ESLint
+npm run type-check       # TypeScript check without emit
+
+# Testing
+npm run test             # Run tests in watch mode
+npm run test:ui          # Run tests with UI
+npm run test:coverage    # Run tests with coverage
+
+# shadcn/ui
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add card
+npx shadcn-ui@latest add dialog
+# ... etc
+```
+
+---
+
+## 16. Best Practices Summary
+
+### Code Organization
+✅ **Feature-Sliced Design**: Cada módulo (`auth`, `invoicing`, etc.) es autocontenido
+✅ **Separation of Concerns**: Services (API), hooks (state), components (UI)
+✅ **Type Safety**: Interfaces compartidas entre frontend y backend
+
+### Performance
+✅ **Server Components**: Por defecto, solo `"use client"` cuando necesario
+✅ **Lazy Loading**: Charts y componentes pesados con `dynamic()`
+✅ **Optimistic Updates**: TanStack Query mutations con `onMutate`
+✅ **Request Deduplication**: TanStack Query cache automático
+
+### Security
+✅ **JWT en httpOnly cookies**: No accesible desde JavaScript
+✅ **CSRF Protection**: Tokens en headers
+✅ **Multi-tenancy**: `X-Company-Id` obligatorio en todas las requests
+✅ **Input Validation**: Zod schemas en frontend y backend
+
+### UX
+✅ **Loading States**: Skeleton loaders en toda data fetch
+✅ **Error Handling**: Toast notifications con sonner
+✅ **Responsive**: Mobile-first con Tailwind breakpoints
+✅ **Accessibility**: ARIA labels en shadcn/ui components
+
+---
+
+## 17. Conclusión
+
+Esta especificación proporciona:
+- ✅ **Código ejecutable** listo para Bolt.ai
+- ✅ **Arquitectura escalable** con Feature-Sliced Design
+- ✅ **Stack moderno** (Next.js 14, TypeScript, TanStack Query)
+- ✅ **Componentes reutilizables** (shadcn/ui + custom)
+- ✅ **Testing setup** completo (Vitest + MSW)
+- ✅ **Roadmap de implementación** en 6 semanas
+
+El proyecto está diseñado para ser:
+- 🚀 **Performante**: Server Components + lazy loading
+- 🔒 **Seguro**: JWT + multi-tenancy
+- 📱 **Responsive**: Mobile-first
+- 🧪 **Testeable**: Vitest + React Testing Library
+- 📈 **Escalable**: Arquitectura modular
+
+NOTA:
+
+🔍 Pequeños Ajustes (El 1% final)
+Aunque el plan es sólido, aquí hay 3 detalles que podrías querer considerar para evitar fricciones durante la implementación:
+
+Manejo de BigDecimal en Formularios:
+
+En InvoiceForm.tsx, usas parseAmount para cálculos.
+
+Sugerencia: Asegúrate de que decimal.js esté configurado para manejar la coma decimal chilena (,) si los usuarios la ingresan, o fuerza el uso de punto (.) en la UI. El backend espera punto.
+
+Validación de RUT en Tiempo Real:
+
+Tienes RutInput que formatea.
+
+Mejora: Podrías agregar un debounce a la validación para que no muestre "RUT inválido" mientras el usuario aún está escribiendo.
+
+PDF Preview:
+
+En el plan mencionas PdfPreview.
+
+Nota: Mostrar un PDF generado por el backend (byte[]) requiere crear un Blob URL en el frontend (URL.createObjectURL). Asegúrate de que el servicio invoice.service.ts maneje la respuesta como blob o arraybuffer cuando pida el PDF.
