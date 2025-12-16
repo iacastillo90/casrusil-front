@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { siiService } from '../services/sii.service';
 
 export interface CAF {
     id: string;
@@ -46,8 +47,7 @@ export const useSIIStore = create<SIIState>()(
             startSync: async () => {
                 set({ syncStatus: 'SYNCING', syncError: null });
                 try {
-                    // Mock API call
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await siiService.fetchRCV();
                     set({
                         syncStatus: 'SUCCESS',
                         lastSync: new Date().toISOString()
@@ -55,7 +55,7 @@ export const useSIIStore = create<SIIState>()(
                 } catch (error) {
                     set({
                         syncStatus: 'ERROR',
-                        syncError: 'Error de conexión con SII'
+                        syncError: 'Error al sincronizar con SII'
                     });
                 }
             },

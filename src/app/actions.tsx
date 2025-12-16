@@ -34,7 +34,7 @@ export async function submitUserMessage(content: string): Promise<ClientMessage>
     ]);
 
     const ui = await streamUI({
-        model: google(process.env.GOOGLE_GENERATIVE_AI_MODEL || 'models/gemini-1.5-flash'),
+        model: google(process.env.GOOGLE_GENERATIVE_AI_MODEL || 'models/gemini-1.5-flash') as any,
         initial: <SkeletonLoader variant="card" rows={1} />,
         system: 'Eres un asistente financiero experto (CFO AI). Puedes mostrar gráficos y datos en tiempo real.',
         messages: [

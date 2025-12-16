@@ -1,19 +1,14 @@
-"use client";
-
-import { AuditAlertsList } from "@/features/accounting/components/AuditAlertsList";
-import { AccountValidationRules } from "@/features/accounting/components/AccountValidationRules";
-import { useAuditAlerts } from "@/features/accounting/hooks/useAccounting";
+// src/app/(dashboard)/accounting/audit/page.tsx
+import { TaxReconciliationTable } from "@/features/accounting/components/TaxReconciliationTable";
 
 export default function AuditPage() {
-    const { data: alerts } = useAuditAlerts();
-
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">Auditoría y Validación</h1>
-            <div className="grid gap-6 md:grid-cols-2">
-                <AuditAlertsList alerts={alerts || []} />
-                <AccountValidationRules />
-            </div>
+            <h1 className="text-3xl font-bold tracking-tight">Auditoría Tributaria SII</h1>
+            <p className="text-muted-foreground">Comparación automática RCV vs Contabilidad Interna.</p>
+
+            {/* Aquí insertamos la nueva tabla detallada */}
+            <TaxReconciliationTable />
         </div>
     );
 }

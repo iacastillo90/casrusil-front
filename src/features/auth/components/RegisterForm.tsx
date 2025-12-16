@@ -1,3 +1,5 @@
+"use client";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -46,8 +48,8 @@ export function RegisterForm() {
             await authService.register({
                 rut: data.rut,
                 razonSocial: data.razonSocial,
-                email: data.email,
-                password: data.password
+                adminEmail: data.email,
+                adminPassword: data.password
             });
 
             toast.success("Cuenta creada exitosamente. Por favor inicia sesión.");

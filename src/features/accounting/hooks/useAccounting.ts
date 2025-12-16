@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountingService } from '../services/accounting.service';
 import { LedgerFilters } from '../types/accounting.types';
 
@@ -29,5 +29,16 @@ export const useAuditAlerts = () => {
     return useQuery({
         queryKey: ['audit-alerts'],
         queryFn: () => accountingService.getAuditAlerts(),
+    });
+};
+
+export const useCleanupNovember = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: accountingService.cleanupNovemberEntries,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['ledger'] });
+            queryClient.invalidateQueries({ queryKey: ['balance-sheet'] });
+        },
     });
 };

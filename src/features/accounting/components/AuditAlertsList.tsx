@@ -28,22 +28,23 @@ export function AuditAlertsList({ alerts }: AuditAlertsListProps) {
 }
 
 function AlertCard({ alert }: { alert: AuditAlert }) {
-    const severityStyles = {
+    const severityStyles: Record<string, string> = {
         LOW: "border-blue-200 bg-blue-50 text-blue-900",
         MEDIUM: "border-yellow-200 bg-yellow-50 text-yellow-900",
         HIGH: "border-red-200 bg-red-50 text-red-900",
     };
 
-    const icons = {
+    const icons: Record<string, any> = {
         LOW: Info,
         MEDIUM: AlertTriangle,
         HIGH: AlertCircle,
     };
 
-    const Icon = icons[alert.severity];
+    const Icon = icons[alert.severity] || Info;
+    const style = severityStyles[alert.severity] || "border-gray-200 bg-gray-50 text-gray-900";
 
     return (
-        <div className={cn("p-4 rounded-lg border flex gap-4", severityStyles[alert.severity])}>
+        <div className={cn("p-4 rounded-lg border flex gap-4", style)}>
             <Icon className="h-5 w-5 shrink-0 mt-0.5" />
             <div className="space-y-1">
                 <h4 className="font-semibold">{alert.type}</h4>

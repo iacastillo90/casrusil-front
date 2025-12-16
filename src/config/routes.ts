@@ -23,4 +23,15 @@ export const API_ENDPOINTS = {
         IMPORT: '/invoices/import',
         SEND: (id: string) => `/invoices/${id}/send`,
     },
+    FEES: {
+        BASE: '/fees',
+        IMPORT: '/fees/import',
+    },
+    COMPLIANCE: {
+        DJ1879: (year: number) => `/compliance/dj1879/${year}`,
+    },
+    SUSTAINABILITY: {
+        DASHBOARD: '/sustainability/dashboard',
+        ECO_TIPS: '/sustainability/eco-tips',
+    },
 } as const;

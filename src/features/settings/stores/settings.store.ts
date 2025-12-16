@@ -1,77 +1,117 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-interface User {
-    id: string;
-    name: string;
-    email: string;
-    role: 'ADMIN' | 'ACCOUNTANT' | 'VIEWER';
-    status: 'ACTIVE' | 'INVITED';
-}
+import { CompanyProfile, User, NotificationPreferences } from '../types/settings.types';
+import { settingsService } from '../services/settings.service';
 
 interface SettingsState {
-    company: {
-        name: string;
-        rut: string;
-        address: string;
-        email: string;
-        phone: string;
-        website: string;
-    };
-    sii: {
-        certificateUploaded: boolean;
-        certificatePassword: string; // Mock, in real app this is sensitive
-    };
+    company: CompanyProfile;
     users: User[];
-    notifications: {
-        email: boolean;
-        push: boolean;
-        marketing: boolean;
-    };
+    notifications: NotificationPreferences;
+    isLoading: boolean;
+    error: string | null;
 
     // Actions
-    updateCompany: (data: Partial<SettingsState['company']>) => void;
-    updateSII: (data: Partial<SettingsState['sii']>) => void;
-    addUser: (user: Omit<User, 'id' | 'status'>) => void;
-    removeUser: (id: string) => void;
-    updateNotifications: (data: Partial<SettingsState['notifications']>) => void;
+    fetchSettings: () => Promise<void>;
+    updateCompany: (data: FormData) => Promise<void>;
+    inviteUser: (email: string, role: string, name?: string) => Promise<void>;
+    removeUser: (id: string) => Promise<void>;
+    updateNotifications: (data: NotificationPreferences) => Promise<void>;
+    triggerReport: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             company: {
-                name: 'Mi Empresa SpA',
-                rut: '76.123.456-7',
-                address: 'Av. Providencia 1234, Of. 601',
-                email: 'contacto@miempresa.cl',
-                phone: '+56 9 1234 5678',
-                website: 'www.miempresa.cl',
+                name: '',
+                rut: '',
+                address: '',
+                email: '',
+                phone: '',
+                website: '',
+                isProfileComplete: false,
             },
-            sii: {
-                certificateUploaded: true,
-                certificatePassword: '••••••••',
-            },
-            users: [
-                { id: '1', name: 'Juan Pérez', email: 'juan@miempresa.cl', role: 'ADMIN', status: 'ACTIVE' },
-                { id: '2', name: 'María González', email: 'maria@contadores.cl', role: 'ACCOUNTANT', status: 'ACTIVE' },
-            ],
+            users: [],
             notifications: {
                 email: true,
                 push: true,
                 marketing: false,
             },
+            isLoading: false, // Don't persist loading state
+            error: null,
 
-            updateCompany: (data) => set((state) => ({ company: { ...state.company, ...data } })),
-            updateSII: (data) => set((state) => ({ sii: { ...state.sii, ...data } })),
-            addUser: (user) => set((state) => ({
-                users: [...state.users, { ...user, id: Math.random().toString(36).substring(7), status: 'INVITED' }]
-            })),
-            removeUser: (id) => set((state) => ({ users: state.users.filter((u) => u.id !== id) })),
-            updateNotifications: (data) => set((state) => ({ notifications: { ...state.notifications, ...data } })),
+            fetchSettings: async () => {
+                set({ isLoading: true, error: null });
+                try {
+                    const [company, users, notifications] = await Promise.all([
+                        settingsService.getCompanyProfile(),
+                        settingsService.getUsersList(),
+                        settingsService.getNotificationPreferences(),
+                    ]);
+                    set({ company, users, notifications, isLoading: false });
+                } catch (error) {
+                    console.error("Failed to fetch settings", error);
+                    // Use fallback/mock data if backend fails for demo purposes or handle error properly
+                    set({ isLoading: false, error: "Error al cargar configuración" });
+                }
+            },
+
+            updateCompany: async (data: FormData) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const updatedCompany = await settingsService.updateCompanyProfile(data);
+                    set((state) => ({ company: updatedCompany, isLoading: false }));
+                } catch (error) {
+                    set({ isLoading: false, error: "Error al actualizar compañía" });
+                    throw error;
+                }
+            },
+
+            inviteUser: async (email, role, name) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const newUser = await settingsService.inviteUser(email, role, name);
+                    set((state) => ({ users: [...state.users, newUser], isLoading: false }));
+                } catch (error) {
+                    set({ isLoading: false, error: "Error al invitar usuario" });
+                    throw error;
+                }
+            },
+
+            removeUser: async (id) => {
+                set({ isLoading: true });
+                try {
+                    await settingsService.removeUser(id);
+                    set((state) => ({ users: state.users.filter((u) => u.id !== id), isLoading: false }));
+                } catch (error) {
+                    set({ isLoading: false, error: "Error al eliminar usuario" });
+                    throw error;
+                }
+            },
+
+            updateNotifications: async (data) => {
+                // Optimistic update
+                set((state) => ({ notifications: { ...state.notifications, ...data } }));
+                try {
+                    await settingsService.updateNotificationPreferences(data);
+                } catch (error) {
+                    // Revert on failure
+                    console.error(error);
+                    // Could re-fetch functionality here
+                }
+            },
+
+            triggerReport: async () => {
+                await settingsService.triggerWeeklyReport();
+            }
         }),
         {
             name: 'settings-storage',
+            partialize: (state) => ({
+                // Persist company and notifications, but maybe not sensitive user lists or loading states
+                company: state.company,
+                notifications: state.notifications
+            }),
         }
     )
 );

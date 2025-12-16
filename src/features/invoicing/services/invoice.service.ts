@@ -1,27 +1,41 @@
 import { apiClient, ApiResponse } from '@/lib/axios';
-import { Invoice } from '../types/invoice.types';
+import { Invoice, GetInvoicesResponse, CreateInvoiceRequest } from '../types/invoice.types';
 import { API_ENDPOINTS } from '@/config/routes';
 
+interface ImportInvoiceParams {
+    file: File;
+    companyId: string;
+    bookType: 'PURCHASE' | 'SALE';
+}
+
 export const invoiceService = {
-    // Obtener facturas (con filtros opcionales)
     getAll: async (params?: { page?: number; pageSize?: number }) => {
         const { data } = await apiClient.get<Invoice[]>(API_ENDPOINTS.INVOICES.BASE, { params });
         return data;
     },
 
-    // IMPORTAR CSV (La funcionalidad clave)
-    importInvoices: async (file: File) => {
+    getInvoices: async (params: any) => {
+        const { data } = await apiClient.get<GetInvoicesResponse>(API_ENDPOINTS.INVOICES.BASE, { params });
+        return data;
+    },
+
+    getInvoiceById: async (id: string) => {
+        const { data } = await apiClient.get<Invoice>(`${API_ENDPOINTS.INVOICES.BASE}/${id}`);
+        return data;
+    },
+
+    createInvoice: async (data: CreateInvoiceRequest) => {
+        const { data: response } = await apiClient.post<Invoice>(API_ENDPOINTS.INVOICES.BASE, data);
+        return response;
+    },
+
+    importInvoices: async ({ file, companyId, bookType }: ImportInvoiceParams) => {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('companyId', companyId);
+        formData.append('bookType', bookType);
 
-        // Endpoint del backend que creamos para carga manual
-        // Nota: Asegúrate de que el backend tenga este endpoint o usa '/invoices/import'
-        // Modified to use ApiResponse typing if strict
-        const { data } = await apiClient.post<ApiResponse<any>>(API_ENDPOINTS.INVOICES.IMPORT, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
+        const { data } = await apiClient.post(API_ENDPOINTS.INVOICES.IMPORT, formData);
         return data;
     },
 

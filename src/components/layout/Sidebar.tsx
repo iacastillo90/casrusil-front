@@ -11,7 +11,8 @@ import {
     FileBarChart,
     Settings,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APP_ROUTES } from '@/lib/constants';
@@ -39,6 +40,15 @@ const navigation = [
         children: [
             { name: 'Sincronizar', href: APP_ROUTES.SII_SYNC },
             { name: 'CAF', href: APP_ROUTES.SII_CAF },
+        ]
+    },
+    {
+        name: 'Conciliación y Control',
+        icon: ShieldCheck,
+        children: [
+            { name: 'Conciliación Bancaria', href: '/banking/reconciliation' },
+            { name: 'Auditoría SII', href: '/sii/audit' },
+            { name: 'Cuentas Corrientes', href: '/accounting/partners' },
         ]
     },
     { name: 'Tesorería', href: APP_ROUTES.BANKING_RECONCILIATION, icon: Wallet },

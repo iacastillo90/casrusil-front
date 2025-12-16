@@ -1,35 +1,66 @@
-import { apiClient, ApiResponse } from "@/lib/axios";
-import { User, Company } from "../stores/auth.store";
-import { API_ENDPOINTS } from "@/config/routes";
-
-export interface LoginRequest {
-    email: string;
-    password: string;
-}
-
-export interface RegisterRequest {
-    rut: string;
-    razonSocial: string;
-    email: string;
-    password: string;
-}
-
-export interface AuthResponse {
-    token: string;
-    user: User;
-    companyId: string;
-    companies: Company[];
-}
+import api from "@/lib/axios";
+import { useAuthStore } from '../stores/auth.store';
+import { LoginCredentials, RegisterData, AuthResponse } from '../types/auth.types';
+import Cookies from 'js-cookie';
 
 export const authService = {
-    login: async (credentials: LoginRequest): Promise<AuthResponse> => {
-        const response = await apiClient.post<ApiResponse<AuthResponse>>(API_ENDPOINTS.AUTH.LOGIN, credentials);
-        return response.data.data;
+    login: async (credentials: LoginCredentials) => {
+        const { data } = await api.post<AuthResponse>('/auth/login', credentials);
+        authService.handleAuthSuccess(data, credentials.email);
+        return data;
     },
 
-    register: async (data: RegisterRequest): Promise<AuthResponse> => {
-        const response = await apiClient.post<ApiResponse<AuthResponse>>(API_ENDPOINTS.AUTH.REGISTER, data);
-        console.log("Register response:", response.data);
-        return response.data.data;
+    register: async (registerData: RegisterData) => {
+        const { data } = await api.post<AuthResponse>('/auth/register', registerData);
+        authService.handleAuthSuccess(data, registerData.adminEmail);
+        return data;
+    },
+
+    handleAuthSuccess: (data: AuthResponse, email: string) => {
+        if (data.token) {
+            Cookies.set('token', data.token, { expires: 1 });
+
+            const user = {
+                id: data.userId,
+                email: email,
+                name: data.userName,
+                role: 'ADMIN' as const
+            };
+
+            useAuthStore.getState().setAuth(
+                user,
+                data.token,
+                data.companyId,
+                [] // companies - not in flat response, sending empty array
+            );
+
+            // Legacy/Duplicate storage if needed, but store should handle it
+            localStorage.setItem('user_data', JSON.stringify(user));
+        }
+    },
+
+    logout: () => {
+        Cookies.remove('token');
+        useAuthStore.getState().logout();
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+        }
+    },
+
+    // Company Management
+    updateCompany: async (data: any) => {
+        const { data: response } = await api.put('/companies/me', data);
+        return response;
+    },
+
+    // User Management
+    createUser: async (user: any) => {
+        const { data } = await api.post('/users', user);
+        return data;
+    },
+
+    updateUserRole: async (id: string, role: string) => {
+        const { data } = await api.put(`/users/${id}/role`, { role });
+        return data;
     }
 };

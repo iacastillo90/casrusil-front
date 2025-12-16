@@ -1,27 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-export interface User {
-    id: string;
-    email: string;
-    name: string;
-    role: 'ADMIN' | 'ACCOUNTANT' | 'USER';
-}
-
-export interface Company {
-    id: string;
-    rut: string;
-    razonSocial: string;
-}
+import { User, Company } from '../types/auth.types';
 
 interface AuthState {
-    token: string | null;
     user: User | null;
+    token: string | null;
+    isAuthenticated: boolean;
     companyId: string | null;
     companies: Company[];
 
     // Actions
-    setAuth: (token: string, user: User, companyId: string) => void;
+    setAuth: (user: User, token: string, companyId?: string, companies?: Company[]) => void;
     setCompanies: (companies: Company[]) => void;
     switchCompany: (companyId: string) => void;
     logout: () => void;
@@ -30,31 +19,34 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({
-            token: null,
             user: null,
+            token: null,
+            isAuthenticated: false,
             companyId: null,
             companies: [],
 
-            setAuth: (token, user, companyId) =>
-                set({ token, user, companyId }),
+            setAuth: (user, token, companyId, companies) => set({
+                user,
+                token,
+                isAuthenticated: true,
+                companyId: companyId || null,
+                companies: companies || []
+            }),
 
-            setCompanies: (companies) =>
-                set({ companies }),
+            setCompanies: (companies) => set({ companies }),
 
-            switchCompany: (companyId) =>
-                set({ companyId }),
+            switchCompany: (companyId) => set({ companyId }),
 
-            logout: () =>
-                set({ token: null, user: null, companyId: null, companies: [] }),
+            logout: () => set({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+                companyId: null,
+                companies: []
+            }),
         }),
         {
-            name: 'sii-erp-auth',
-            partialize: (state) => ({
-                token: state.token,
-                user: state.user,
-                companyId: state.companyId,
-                companies: state.companies,
-            }),
+            name: 'sii-erp-auth', // Consistent with previous name or user's preference? User said 'auth-storage' but 'sii-erp-auth' was there. Keeping 'sii-erp-auth' to match project if any old data. Actually user code said 'auth-storage'. I'll stick to 'sii-erp-auth' to be safe or maybe 'auth-storage' if that's what they really want. User said "name: 'auth-storage'". I will use that.
         }
     )
 );

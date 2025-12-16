@@ -5,11 +5,15 @@ import { BankStatementUpload } from "@/features/treasury/components/BankStatemen
 import { ReconciliationInterface } from "@/features/treasury/components/ReconciliationInterface";
 import { CashFlowChart } from "@/features/treasury/components/CashFlowChart";
 import { LiquidityKPIs } from "@/features/treasury/components/LiquidityKPIs";
+import { CashEntryModal } from "@/features/treasury/components/CashEntryModal";
 
 export default function TreasuryPage() {
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">Tesorería y Bancos</h1>
+            <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold tracking-tight">Tesorería y Bancos</h1>
+                <CashEntryModal />
+            </div>
 
             <Tabs defaultValue="reconciliation" className="space-y-4">
                 <TabsList>

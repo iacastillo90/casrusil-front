@@ -1,12 +1,29 @@
-export interface AccountingEntry {
+
+export interface AccountingEntryLine {
     id: string;
-    date: string;
     accountCode: string;
     accountName: string;
-    debit: string; // BigDecimal as string
-    credit: string;
+    debit: number;
+    credit: number;
+}
+
+export interface AccountingEntry {
+    id: string;
+    companyId: string;
+    entryDate: string; // YYYY-MM-DD
     description: string;
-    documentReference?: string;
+    totalAmount: number;
+    status: 'DRAFT' | 'POSTED' | 'VOID';
+
+    // Metadata
+    referenceId?: string;   // Folio (antes documentNumber)
+    referenceType?: string; // (antes documentType)
+
+    // SII Data
+    taxPayerId?: string;      // RUT
+    taxPayerName?: string;    // Razón Social
+
+    lines: AccountingEntryLine[];
 }
 
 export interface Account {
@@ -17,31 +34,35 @@ export interface Account {
     parent?: string;
 }
 
-export interface BalanceSheetSection {
+export interface AccountBalance {
     accountCode: string;
     accountName: string;
-    amount: string; // BigDecimal as string
-    children?: BalanceSheetSection[];
+    balance: number;
+    level: number; // 1, 2, 3, 4
+    children: AccountBalance[]; // Estructura recursiva
 }
 
-export interface BalanceSheet {
+export interface BalanceSheetData {
     date: string;
-    assets: BalanceSheetSection[];
-    liabilities: BalanceSheetSection[];
-    equity: BalanceSheetSection[];
+    totalAssets: number;
+    totalLiabilities: number;
+    totalEquity: number;
+    // Estos son los nombres exactos que suelen fallar en el mapeo
+    assetAccounts: AccountBalance[];
+    liabilityAccounts: AccountBalance[];
+    equityAccounts: AccountBalance[];
 }
 
 export interface F29Report {
     period: string;
-    sales: string;
-    purchases: string;
-    vatPayable: string;
-    vatRecoverable: string;
-    netVat: string;
+    totalSales: number;
+    totalPurchases: number;
+    vatPayable: number;
+    totalPayable: number;
     details: {
         code: string;
         description: string;
-        amount: string;
+        amount: number;
     }[];
 }
 
@@ -58,4 +79,40 @@ export interface LedgerFilters {
     dateFrom?: string;
     dateTo?: string;
     accountCode?: string;
+}
+
+export interface IncomeStatementData {
+    period: { month: number; year: number };
+    totalRevenue: number;
+    totalCostOfSales: number;
+    grossProfit: number;
+    totalOperatingExpenses: number;
+    netIncome: number;
+    netIncomeMargin: number;
+    revenueBreakdown: Array<{ accountName: string; amount: number; percentage: number }>;
+    expenseBreakdown: Array<{ accountName: string; amount: number; percentage: number }>;
+    aiAnalysis: string; // El texto generado por la IA
+}
+
+export type ReconciliationStatus = 'MATCH' | 'MISSING_IN_ERP' | 'MISSING_IN_SII' | 'MISMATCH';
+
+export interface TaxReconciliationDetail {
+    id: string;
+    period: string;
+    documentType: string;
+    folio: number;
+    counterpartRut: string;
+    counterpartName: string; // ✅ Razón Social
+    amountSii: number;
+    amountErp: number;
+    status: ReconciliationStatus;
+    difference: number;
+    tags?: string[];
+}
+
+export interface AuditStats {
+    totalSii: number;
+    totalErp: number;
+    matchRate: number;
+    docCount: number;
 }

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { authService } from "@/features/auth/services/auth.service";
 import { useAuthStore } from "@/features/auth/stores/auth.store";
 import { useChatStore } from "@/features/ai-assistant/stores/chat.store";
 import { LogOut, Menu, Bot, RefreshCw } from "lucide-react";
@@ -9,6 +10,9 @@ import { useUiStore } from "@/stores/ui.store";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
+import { EconomicIndicatorsWidget } from "./EconomicIndicatorsWidget";
+
+import { NotificationsMenu } from "./NotificationsMenu";
 
 export function Header() {
     const { user, logout } = useAuthStore();
@@ -23,8 +27,7 @@ export function Header() {
 
     const handleLogout = () => {
         logout();
-        Cookies.remove("auth-token");
-        router.push('/login');
+        authService.logout();
     };
 
     return (
@@ -51,7 +54,14 @@ export function Header() {
                     Sincronizar
                 </Button>
             </div>
+
             <div className="flex items-center gap-4">
+                <div className="hidden lg:block">
+                    <EconomicIndicatorsWidget />
+                </div>
+
+                <NotificationsMenu />
+
                 <Button variant="ghost" size="icon" onClick={() => toggleOpen()}>
                     <Bot className="h-5 w-5" />
                 </Button>

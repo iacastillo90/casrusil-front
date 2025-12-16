@@ -8,28 +8,43 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, FileCode } from "lucide-react";
 import { useSIIStore } from "../stores/sii.store";
 import { formatDate } from "@/lib/formatters";
+import { siiService } from "../services/sii.service";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 export function CAFUpload() {
     const { cafs, addCAF } = useSIIStore();
     const [file, setFile] = useState<File | null>(null);
 
-    const handleUpload = () => {
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleUpload = async () => {
         if (!file) return;
 
-        // Mock XML parsing
-        // In a real app, we would parse the XML content to get type and range
-        const mockType = 33; // Factura Electrónica
-        const mockStart = 1001;
-        const mockEnd = 2000;
+        setIsLoading(true);
+        try {
+            const response = await siiService.uploadCAF(file);
 
-        addCAF({
-            filename: file.name,
-            type: mockType,
-            rangeStart: mockStart,
-            rangeEnd: mockEnd,
-        });
+            // Assuming backend returns range info, we add it to the store
+            // We use the response data to populate store properly
+            // If backend doesn't return full object, we might need a fetchCAFs method later
+            // For now, we update local store with optimistic success or response data
 
-        setFile(null);
+            addCAF({
+                filename: file.name,
+                type: 33, // Ideally this comes from backend parsing response
+                rangeStart: response.folioRange?.start || 0,
+                rangeEnd: response.folioRange?.end || 0,
+            });
+
+            setFile(null);
+            toast.success(response.message || "Archivo CAF cargado exitosamente");
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al procesar el archivo CAF");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -48,9 +63,9 @@ export function CAFUpload() {
                             onChange={(e) => setFile(e.target.files?.[0] || null)}
                         />
                     </div>
-                    <Button onClick={handleUpload} disabled={!file}>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Cargar Folios
+                    <Button onClick={handleUpload} disabled={!file || isLoading}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                        {isLoading ? "Procesando..." : "Cargar Folios"}
                     </Button>
                 </div>
 

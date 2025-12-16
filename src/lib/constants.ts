@@ -51,7 +51,7 @@ export const APP_ROUTES = {
     // Accounting
     ACCOUNTING_LEDGER: '/accounting/ledger',
     ACCOUNTING_F29: '/accounting/f29',
-    ACCOUNTING_BALANCE: '/accounting/assets', // Mapped to assets page based on existing structure
+    ACCOUNTING_BALANCE: '/accounting/balance',
     ACCOUNTING_INCOME: '/accounting/income',
     ACCOUNTING_AUDIT: '/accounting/audit',
 
